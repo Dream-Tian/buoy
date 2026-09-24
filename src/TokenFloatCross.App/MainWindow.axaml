@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Buoy.MainWindow"
+        Classes="shell"
+        Title="Buoy"
+        ShowInTaskbar="False"
+        Width="560"
+        Height="392"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+  <Border Classes="shell">
+    <Grid RowDefinitions="30,34,*,22">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Classes="title" Text="Buoy" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="muted" Text="用量浮窗" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+          <Button Classes="icon" Content="×" Click="CloseButton_Click" />
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto">
+        <Border Classes="track" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="OverviewTab" Classes="segment active" Content="总览" Click="TabButton_Click" Tag="Overview" />
+            <Button x:Name="TrendTab" Classes="segment" Content="趋势" Click="TabButton_Click" Tag="Trend" />
+            <Button x:Name="ModelTab" Classes="segment" Content="模型" Click="TabButton_Click" Tag="Model" />
+            <Button x:Name="QuotaTab" Classes="segment" Content="配额" Click="TabButton_Click" Tag="Quota" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="track" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="TodayButton" Classes="segment active" Content="今日" Click="PeriodButton_Click" Tag="Today" />
+            <Button x:Name="WeekButton" Classes="segment" Content="本周" Click="PeriodButton_Click" Tag="Week" />
+            <Button x:Name="MonthButton" Classes="segment" Content="本月" Click="PeriodButton_Click" Tag="Month" />
+          </StackPanel>
+        </Border>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0" VerticalAlignment="Center">
+          <Button Classes="plain" Content="刷新" Click="RefreshButton_Click" />
+          <Button Classes="icon" Content="⚙" Click="SettingsButton_Click" />
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="2" Margin="0,10,0,0">
+        <Border x:Name="OverviewPage" Classes="card" Padding="0">
+          <Grid RowDefinitions="*,1,46">
+            <Grid Margin="14,12,8,8" ColumnDefinitions="1.3*,*,*">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Ellipse Width="7" Height="7" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
+                  <TextBlock Classes="muted" Text="总 TOKEN" Margin="6,0,0,0" />
+                </StackPanel>
+                <TextBlock x:Name="TokensText" Classes="metric" Text="--" Margin="0,8,0,0" />
+                <TextBlock Classes="subtle" Text="所选时段" Margin="0,4,0,0" />
+              </StackPanel>
+              <Border Grid.Column="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="14,0,8,0">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Classes="muted" Text="总请求" />
+                  <TextBlock x:Name="RequestsText" FontSize="20" FontWeight="SemiBold"
+                             Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,6,0,0" />
+                  <TextBlock Classes="subtle" Text="统计次数" Margin="0,4,0,0" />
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="14,0,8,0">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Classes="muted" Text="来源" />
+                  <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}"
+                             Text="NewAPI" Margin="0,8,0,0" />
+                  <TextBlock Classes="subtle" Text="本机配额另计" Margin="0,4,0,0" />
+                </StackPanel>
+              </Border>
+            </Grid>
+            <Border Grid.Row="1" Background="{DynamicResource AppBorderBrush}" />
+            <Grid Grid.Row="2" ColumnDefinitions="*,1,*">
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                <TextBlock Classes="muted" Text="RPM" VerticalAlignment="Center" />
+                <TextBlock x:Name="RpmText" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" VerticalAlignment="Center" />
+                <TextBlock Classes="subtle" Text="次/分" Margin="6,1,0,0" VerticalAlignment="Center" />
+              </StackPanel>
+              <Border Grid.Column="1" Background="{DynamicResource AppBorderBrush}" />
+              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                <TextBlock Classes="muted" Text="TPM" VerticalAlignment="Center" />
+                <TextBlock x:Name="TpmText" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" VerticalAlignment="Center" />
+                <TextBlock Classes="subtle" Text="Token/分" Margin="6,1,0,0" VerticalAlignment="Center" />
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Border>
+
+        <Border x:Name="TrendPage" Classes="card" IsVisible="False" Padding="0">
+          <Grid RowDefinitions="Auto,1,*">
+            <Grid Margin="14,8,12,8" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+              <Border Grid.RowSpan="2" Width="8" Height="26" CornerRadius="4" Background="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Margin="10,0,8,0" Text="消费趋势" FontSize="14" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AppTextBrush}" VerticalAlignment="Center" />
+              <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,3,0,0" ColumnDefinitions="Auto,Auto,*">
+                <TextBlock x:Name="TrendTitleText" Classes="muted" Text="今日 · 每时" />
+                <TextBlock x:Name="TrendTotalText" Grid.Column="1" Classes="subtle" Text="总计 --" Margin="10,0,0,0" />
+                <TextBlock x:Name="TrendPeakText" Grid.Column="2" Text="--" Margin="10,0,0,0" FontSize="11"
+                           Foreground="{DynamicResource AppAccentBrush}" TextTrimming="CharacterEllipsis" />
+              </Grid>
+              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                <Border Classes="track">
+                  <StackPanel Orientation="Horizontal">
+                    <Button x:Name="TrendTokensButton" Classes="segment active" Content="Token" Click="TrendMetricButton_Click" Tag="Tokens" />
+                    <Button x:Name="TrendRequestsButton" Classes="segment" Content="次数" Click="TrendMetricButton_Click" Tag="Requests" />
+                    <Button x:Name="TrendCostButton" Classes="segment" Content="消耗" Click="TrendMetricButton_Click" Tag="Cost" />
+                  </StackPanel>
+                </Border>
+                <Border Classes="track">
+                  <StackPanel Orientation="Horizontal">
+                    <Button x:Name="TrendBarsButton" Classes="segment active" Content="柱状" Click="TrendStyleButton_Click" Tag="Bars" />
+                    <Button x:Name="TrendAreaButton" Classes="segment" Content="面积" Click="TrendStyleButton_Click" Tag="Area" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Grid>
+            <Border Grid.Row="1" Background="{DynamicResource AppBorderBrush}" />
+            <Canvas x:Name="UsageTrendCanvas" Grid.Row="2" Margin="4,4,8,6" Background="Transparent"
+                    PointerMoved="UsageTrendCanvas_PointerMoved"
+                    PointerExited="UsageTrendCanvas_PointerExited" />
+          </Grid>
+        </Border>
+
+        <Border x:Name="ModelPage" Classes="card" IsVisible="False" Padding="12,8">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock x:Name="ModelPageTitle" Text="模型用量" FontSize="13" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AppTextBrush}" VerticalAlignment="Center" />
+              <TextBlock x:Name="ModelPageSummary" Grid.Column="1" FontSize="10" VerticalAlignment="Center"
+                         Foreground="{DynamicResource AppMutedBrush}" />
+            </Grid>
+            <TextBlock Grid.Row="1" Text="Token · 请求 · 消耗占比 · 输入/输出占比" Margin="0,2,0,4"
+                       FontSize="10" Foreground="{DynamicResource AppMutedBrush}" />
+            <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel x:Name="ModelList" Spacing="0" />
+            </ScrollViewer>
+          </Grid>
+        </Border>
+
+        <Border x:Name="QuotaPage" Classes="card" IsVisible="False" Padding="12,8">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock x:Name="QuotaPageTitle" Text="Antigravity 配额" FontSize="13" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AppTextBrush}" VerticalAlignment="Center" />
+              <TextBlock x:Name="QuotaPageSummary" Grid.Column="1" FontSize="10" VerticalAlignment="Center"
+                         Foreground="{DynamicResource AppMutedBrush}" />
+            </Grid>
+            <TextBlock x:Name="QuotaStatus" Grid.Row="1" Text="剩余比例" Margin="0,2,0,4"
+                       FontSize="10" Foreground="{DynamicResource AppMutedBrush}" TextWrapping="Wrap" />
+            <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+              <StackPanel x:Name="QuotaList" Spacing="0" />
+            </ScrollViewer>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <TextBlock x:Name="StatusText" Grid.Row="3" Classes="muted" VerticalAlignment="Bottom"
+                 Text="关闭后留在菜单栏或托盘。" TextTrimming="CharacterEllipsis" />
+    </Grid>
+  </Border>
+</Window>

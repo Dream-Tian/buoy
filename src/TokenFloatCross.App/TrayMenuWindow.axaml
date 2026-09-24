@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Buoy.TrayMenuWindow"
+        Title="Buoy"
+        Width="112"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+  <Border Background="{DynamicResource AppBackgroundBrush}"
+          BorderBrush="{DynamicResource AppFrameBrush}"
+          BorderThickness="1"
+          CornerRadius="9"
+          Padding="4,4">
+    <StackPanel Spacing="0">
+      <Button x:Name="ShowButton" Classes="tray" Content="显示" Click="ShowButton_Click" />
+      <Button x:Name="ExitButton" Classes="tray" Content="退出" Click="ExitButton_Click" />
+    </StackPanel>
+  </Border>
+</Window>

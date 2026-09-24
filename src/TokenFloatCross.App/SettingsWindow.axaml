@@ -1,0 +1,177 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Buoy.SettingsWindow"
+        Classes="shell"
+        Title="Buoy 设置"
+        ShowInTaskbar="False"
+        Width="420"
+        Height="468"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <Border Classes="shell" Padding="12,10">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock Classes="title" FontSize="16" Text="设置" />
+          <TextBlock x:Name="VersionText" Classes="muted" Margin="0,2,0,0" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="icon" Content="×" Click="CloseButton_Click" />
+      </Grid>
+
+      <Border Grid.Row="1" Classes="track" HorizontalAlignment="Left" Margin="0,6,0,8">
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="SourceTab" Classes="segment active" Content="来源" Click="TabButton_Click" Tag="Source" />
+          <Button x:Name="WindowTab" Classes="segment" Content="窗口" Click="TabButton_Click" Tag="Window" />
+          <Button x:Name="DataTab" Classes="segment" Content="数据" Click="TabButton_Click" Tag="Data" />
+          <Button x:Name="UpdateTab" Classes="segment" Content="更新" Click="TabButton_Click" Tag="Update" />
+        </StackPanel>
+      </Border>
+
+      <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+        <Grid>
+        <StackPanel x:Name="SourcePage">
+          <Border Classes="section">
+            <StackPanel Spacing="6">
+              <TextBlock Text="NewAPI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}" />
+              <TextBlock Classes="muted" Text="服务地址" />
+              <TextBox x:Name="BaseUrlBox" Classes="field" Watermark="https://new-api.example.com/" />
+              <Grid ColumnDefinitions="*,90" Margin="0,4,0,0">
+                <StackPanel Margin="0,0,8,0">
+                  <TextBlock Classes="muted" Text="系统 Token" />
+                  <TextBox x:Name="TokenBox" Classes="field" PasswordChar="•" Margin="0,4,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Classes="muted" Text="用户 ID" />
+                  <TextBox x:Name="UserIdBox" Classes="field" Margin="0,4,0,0" />
+                </StackPanel>
+              </Grid>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
+                <Button Classes="action" Content="测试连接" Click="TestButton_Click" />
+                <Button Classes="action" Content="保存" Click="SaveNewApiButton_Click" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Border Classes="section">
+            <StackPanel Spacing="6">
+              <TextBlock Text="本地 Antigravity" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="读取 Antigravity IDE 用量和配额" VerticalAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{DynamicResource AppTextBrush}" />
+                <CheckBox x:Name="AntigravityBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" />
+              </Grid>
+              <TextBlock Classes="muted" TextWrapping="Wrap"
+                         Text="需要 IDE 运行并登录。配额单独显示；订阅费用不作估算。" />
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="TestAntigravityButton" Classes="action" Content="测试配额" Click="TestAntigravityButton_Click" />
+                <Button Classes="action" Content="保存并刷新" Click="SaveAntigravityButton_Click" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+      <StackPanel x:Name="WindowPage" IsVisible="False">
+        <Border Classes="section">
+          <StackPanel Spacing="6">
+            <TextBlock Text="窗口" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="统计刷新间隔" VerticalAlignment="Center" Foreground="{DynamicResource AppTextBrush}" />
+              <ComboBox x:Name="IntervalBox" Grid.Column="1" Width="108" MinHeight="30" HorizontalAlignment="Right"
+                        SelectionChanged="IntervalBox_SelectionChanged">
+                <ComboBoxItem Content="10 秒" Tag="10" />
+                <ComboBoxItem Content="30 秒" Tag="30" />
+                <ComboBoxItem Content="1 分钟" Tag="60" />
+                <ComboBoxItem Content="5 分钟" Tag="300" />
+              </ComboBox>
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="仅窗口可见时刷新" VerticalAlignment="Center" Foreground="{DynamicResource AppTextBrush}" />
+              <CheckBox x:Name="VisibleOnlyBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="VisibleOnlyBox_Click" />
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock Text="置于顶层" VerticalAlignment="Center" Foreground="{DynamicResource AppTextBrush}" />
+                <TextBlock Classes="muted" Text="开启后，主窗口和设置窗口保持在其他窗口之上" />
+              </StackPanel>
+              <CheckBox x:Name="KeepOnTopBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="KeepOnTopBox_Click" />
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock Text="开机自启" VerticalAlignment="Center" Foreground="{DynamicResource AppTextBrush}" />
+                <TextBlock Classes="muted" Text="登录后自动打开 Buoy" />
+              </StackPanel>
+              <CheckBox x:Name="LaunchAtLoginBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="LaunchAtLoginBox_Click" />
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock Text="外观" Foreground="{DynamicResource AppTextBrush}" />
+                <TextBlock Classes="muted" Text="浅色纯白，深色纯黑" Margin="0,2,0,0" />
+              </StackPanel>
+              <Border Grid.Column="1" Classes="track" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                  <Button x:Name="LightButton" Classes="segment" Content="浅色" Click="ThemeButton_Click" Tag="Light" />
+                  <Button x:Name="DarkButton" Classes="segment" Content="深色" Click="ThemeButton_Click" Tag="Dark" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <StackPanel x:Name="DataPage" IsVisible="False">
+        <Border Classes="section">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="本地数据" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                         Foreground="{DynamicResource AppTextBrush}" />
+              <Button Grid.Column="1" Classes="action" Content="打开目录" Click="OpenFolderButton_Click" />
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="设置文件" Foreground="{DynamicResource AppMutedBrush}" />
+              <TextBlock x:Name="SettingsSizeText" Grid.Column="1" Foreground="{DynamicResource AppAccentBrush}" />
+            </Grid>
+            <Border Classes="rule" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="本次刷新耗时" Foreground="{DynamicResource AppMutedBrush}" />
+              <TextBlock x:Name="RefreshDurationText" Grid.Column="1" Foreground="{DynamicResource AppAccentBrush}" Text="尚未刷新" />
+            </Grid>
+            <Border Classes="rule" />
+            <TextBlock x:Name="DataFolderText" Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <StackPanel x:Name="UpdatePage" IsVisible="False">
+        <Border Classes="section">
+          <StackPanel Spacing="6">
+            <TextBlock Text="更新" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock Text="自动检查更新" VerticalAlignment="Center" Foreground="{DynamicResource AppTextBrush}" />
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="启动后每 24 小时检查一次清单。跨平台安装包还不能自动安装。" />
+              </StackPanel>
+              <CheckBox x:Name="AutoUpdateBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="AutoUpdateBox_Click" />
+            </Grid>
+            <Border Classes="rule" Margin="0,4" />
+            <TextBlock Classes="muted" Text="更新清单地址" />
+            <TextBox x:Name="ManifestBox" Classes="field" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
+              <Button Classes="action" Content="保存" Click="SaveUpdateButton_Click" />
+              <Button x:Name="CheckUpdateButton" Classes="action" Content="检查更新" Click="CheckUpdateButton_Click" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+        </Grid>
+      </ScrollViewer>
+
+      <Border Grid.Row="3" Classes="rule" Margin="0,8,0,0" />
+      <TextBlock x:Name="StatusText" Grid.Row="4" Classes="muted" Margin="0,6,0,0" MinHeight="18"
+                 Text="设置只保存在本机" TextWrapping="Wrap" />
+    </Grid>
+  </Border>
+</Window>
