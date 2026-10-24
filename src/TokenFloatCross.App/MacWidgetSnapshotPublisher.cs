@@ -176,6 +176,19 @@ internal sealed record WidgetModelUsage(
     double Share,
     double CostUsd);
 
+internal sealed record WidgetQuotaModel(
+    string Model,
+    string? Label,
+    double? RemainingFraction);
+
+internal sealed record WidgetQuotaSnapshot(
+    string Message,
+    string? PlanName,
+    double? AvailableCredits,
+    double? MonthlyCredits,
+    long UpdatedAtUnixSeconds,
+    IReadOnlyList<WidgetQuotaModel> Models);
+
 internal sealed record WidgetUsageSnapshot(
     long TotalTokens,
     long RequestCount,
@@ -186,4 +199,5 @@ internal sealed record WidgetUsageSnapshot(
     bool HasError,
     IReadOnlyList<WidgetModelUsage> TopModels,
     double CostUsd,
-    string RangeLabel);
+    string RangeLabel,
+    WidgetQuotaSnapshot? Quota = null);

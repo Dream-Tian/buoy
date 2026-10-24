@@ -17,6 +17,8 @@ public partial class MainWindow : Window
 {
     private readonly NewApiClient _client = new();
     private readonly AntigravityQuotaClient _quotaClient = new();
+
+    private WidgetQuotaSnapshot? _widgetQuota;
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly DispatcherTimer _widgetSaveTimer = new() { Interval = TimeSpan.FromSeconds(1.2) };
     private bool _widgetApplied;
@@ -223,6 +225,14 @@ public partial class MainWindow : Window
     private void TabButton_Click(object? sender, RoutedEventArgs e)
     {
         var tag = sender is Button { Tag: string value } ? value : "Overview";
+        ShowPage(tag);
+    }
+
+    /// <summary>
+    /// 切到指定页签，供 buoy://quota 这类外部唤起复用。
+    /// </summary>
+    public void ShowPage(string tag)
+    {
         OverviewPage.IsVisible = tag == "Overview";
         TrendPage.IsVisible = tag == "Trend";
         ModelPage.IsVisible = tag == "Model";
@@ -301,6 +311,8 @@ public partial class MainWindow : Window
             QuotaPageSummary.Text = string.Empty;
             QuotaStatus.Text = "在设置中启用本地 Antigravity，即可读取当前配额。";
             QuotaList.Children.Clear();
+            _widgetQuota = null;
+            PublishWidgetSnapshot();
             return;
         }
 
@@ -335,6 +347,17 @@ public partial class MainWindow : Window
         {
             SetStatus(quota.Message);
         }
+
+        _widgetQuota = new WidgetQuotaSnapshot(
+            quota.Message,
+            quota.PlanName,
+            (double?)quota.AvailableCredits,
+            (double?)quota.MonthlyCredits,
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            quota.Models
+                .Select(item => new WidgetQuotaModel(item.Model, item.Label, (double?)item.RemainingFraction))
+                .ToArray());
+        PublishWidgetSnapshot();
     }
 
     /// <summary>
@@ -492,7 +515,8 @@ public partial class MainWindow : Window
             _lastRefreshHadError,
             topModels,
             (double)(quota / QuotaPerUnit),
-            label));
+            label,
+            _widgetQuota));
     }
 
     private static (DateTime Start, string Label) ResolveWidgetRange(string key)

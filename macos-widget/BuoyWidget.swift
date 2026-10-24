@@ -23,6 +23,7 @@ struct UsageSnapshot: Codable {
     let topModels: [UsageModel]
     let costUsd: Double
     let rangeLabel: String?
+    let quota: QuotaSnapshot?
 
     var rangeText: String { rangeLabel ?? "今日" }
 
@@ -36,8 +37,24 @@ struct UsageSnapshot: Codable {
         hasError: false,
         topModels: [],
         costUsd: 0,
-        rangeLabel: nil
+        rangeLabel: nil,
+        quota: nil
     )
+}
+
+struct QuotaModelSnapshot: Codable {
+    let model: String
+    let label: String?
+    let remainingFraction: Double?
+}
+
+struct QuotaSnapshot: Codable {
+    let message: String
+    let planName: String?
+    let availableCredits: Double?
+    let monthlyCredits: Double?
+    let updatedAtUnixSeconds: Int64
+    let models: [QuotaModelSnapshot]
 }
 
 struct UsageEntry: TimelineEntry {
@@ -61,45 +78,47 @@ struct UsageProvider: TimelineProvider {
                 UsageModel(model: "deepseek-v3.2", tokens: 34_848, requests: 10, share: 0.27, costUsd: 3.44)
             ],
             costUsd: 12.34,
-            rangeLabel: "今日"
+            rangeLabel: "今日",
+            quota: nil
         ))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (UsageEntry) -> Void) {
-        loadSnapshot { snapshot in
+        loadBuoySnapshot { snapshot in
             completion(UsageEntry(date: Date(), snapshot: snapshot))
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<UsageEntry>) -> Void) {
-        loadSnapshot { snapshot in
+        loadBuoySnapshot { snapshot in
             let now = Date()
             let nextRefresh = Calendar.current.date(byAdding: .minute, value: 5, to: now) ?? now.addingTimeInterval(300)
             completion(Timeline(entries: [UsageEntry(date: now, snapshot: snapshot)], policy: .after(nextRefresh)))
         }
     }
 
-    /// 从主程序在本机起的只读接口取数；主程序没开时退回空状态。
-    private func loadSnapshot(completion: @escaping (UsageSnapshot) -> Void) {
-        var request = URLRequest(url: snapshotURL)
-        request.timeoutInterval = 2
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        URLSession.shared.dataTask(with: request) { data, _, _ in
-            let live = data.flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
-            let snapshot = live ?? self.loadCachedSnapshot()
-            DispatchQueue.main.async { completion(snapshot) }
-        }.resume()
-    }
+}
 
-    /// 主程序没开时读它上次写下的快照，至少还能看到最后一次的数据。
-    private func loadCachedSnapshot() -> UsageSnapshot {
-        let url = URL(fileURLWithPath: "/Users/\(NSUserName())/Library/Application Support/Buoy/widget-snapshot.json")
-        guard let data = try? Data(contentsOf: url),
-              let snapshot = try? JSONDecoder().decode(UsageSnapshot.self, from: data) else {
-            return .empty
-        }
-        return snapshot
+private let snapshotFileURL = URL(fileURLWithPath: "/Users/\(NSUserName())/Library/Application Support/Buoy/widget-snapshot.json")
+
+/// 从主程序在本机起的只读接口取数；主程序没开时退回上次落盘的快照。
+private func loadBuoySnapshot(completion: @escaping (UsageSnapshot) -> Void) {
+    var request = URLRequest(url: snapshotURL)
+    request.timeoutInterval = 2
+    request.cachePolicy = .reloadIgnoringLocalCacheData
+    URLSession.shared.dataTask(with: request) { data, _, _ in
+        let live = data.flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
+        let snapshot = live ?? loadCachedBuoySnapshot()
+        DispatchQueue.main.async { completion(snapshot) }
+    }.resume()
+}
+
+private func loadCachedBuoySnapshot() -> UsageSnapshot {
+    guard let data = try? Data(contentsOf: snapshotFileURL),
+          let snapshot = try? JSONDecoder().decode(UsageSnapshot.self, from: data) else {
+        return .empty
     }
+    return snapshot
 }
 
 struct UsageWidgetView: View {
@@ -300,6 +319,250 @@ struct UsageWidgetView: View {
     }
 }
 
+struct QuotaEntry: TimelineEntry {
+    let date: Date
+    let snapshot: UsageSnapshot
+}
+
+struct QuotaProvider: TimelineProvider {
+    func placeholder(in context: Context) -> QuotaEntry {
+        QuotaEntry(date: Date(), snapshot: .quotaPreview)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (QuotaEntry) -> Void) {
+        loadBuoySnapshot { completion(QuotaEntry(date: Date(), snapshot: $0)) }
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<QuotaEntry>) -> Void) {
+        loadBuoySnapshot { snapshot in
+            let now = Date()
+            let nextRefresh = Calendar.current.date(byAdding: .minute, value: 5, to: now) ?? now.addingTimeInterval(300)
+            completion(Timeline(entries: [QuotaEntry(date: now, snapshot: snapshot)], policy: .after(nextRefresh)))
+        }
+    }
+}
+
+extension UsageSnapshot {
+    static let quotaPreview = UsageSnapshot(
+        totalTokens: 0,
+        requestCount: 0,
+        averageRpm: 0,
+        averageTpm: 0,
+        updatedAtUnixSeconds: Int64(Date().timeIntervalSince1970),
+        isConfigured: true,
+        hasError: false,
+        topModels: [],
+        costUsd: 0,
+        rangeLabel: "今日",
+        quota: QuotaSnapshot(
+            message: "",
+            planName: "Pro",
+            availableCredits: 120,
+            monthlyCredits: 250,
+            updatedAtUnixSeconds: Int64(Date().timeIntervalSince1970),
+            models: [
+                QuotaModelSnapshot(model: "gemini-3-pro", label: "Gemini 3 Pro", remainingFraction: 0.72),
+                QuotaModelSnapshot(model: "claude-sonnet-4-5", label: "Claude Sonnet 4.5", remainingFraction: 0.41),
+                QuotaModelSnapshot(model: "gpt-5", label: "GPT-5", remainingFraction: 0.18)
+            ]))
+}
+
+struct QuotaWidgetView: View {
+    let entry: QuotaEntry
+    @Environment(\.widgetFamily) private var family
+
+    private var quota: QuotaSnapshot? { entry.snapshot.quota }
+
+    private var mediumModels: [QuotaModelSnapshot] {
+        Array((quota?.models ?? []).prefix(3))
+    }
+
+    var body: some View {
+        Group {
+            if family == .systemMedium {
+                medium
+            } else {
+                small
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.top, 14)
+        .padding(.trailing, 14)
+        .padding(.bottom, 12)
+    }
+
+    private var small: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("ANTIGRAVITY")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .tracking(0.8)
+
+            if let model = quota?.models.first, let fraction = model.remainingFraction {
+                Text(percentText(fraction))
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text(modelName(model))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                flexibleBar(fraction)
+                    .padding(.top, 1)
+                Spacer(minLength: 0)
+                Text(creditsText)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                Text("--")
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(statusText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Antigravity 配额")
+                    .font(.system(size: 11, weight: .semibold))
+                Spacer(minLength: 4)
+                Text(creditsText)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if let plan = quota?.planName, !plan.isEmpty {
+                Text(plan)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 5)
+
+            if mediumModels.isEmpty {
+                Text(statusText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(Array(mediumModels.enumerated()), id: \.offset) { _, model in
+                        row(model)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func row(_ model: QuotaModelSnapshot) -> some View {
+        HStack(spacing: 8) {
+            Text(modelName(model))
+                .font(.system(size: 10.5, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let fraction = model.remainingFraction {
+                bar(fraction, width: 74)
+                Text(percentText(fraction))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .frame(width: 30, alignment: .trailing)
+            } else {
+                Text("--")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func bar(_ fraction: Double, width: CGFloat) -> some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.primary.opacity(0.12))
+            Capsule().fill(quotaColor(fraction)).frame(width: max(3, width * clamp(fraction)))
+        }
+        .frame(width: width, height: 5)
+    }
+
+    private func flexibleBar(_ fraction: Double) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.12))
+                Capsule().fill(quotaColor(fraction)).frame(width: max(3, geo.size.width * clamp(fraction)))
+            }
+        }
+        .frame(height: 5)
+    }
+
+    private func clamp(_ value: Double) -> Double {
+        max(0, min(1, value))
+    }
+
+    private func quotaColor(_ fraction: Double) -> Color {
+        if fraction > 0.5 { return .green }
+        if fraction > 0.2 { return .orange }
+        return .red
+    }
+
+    private func percentText(_ fraction: Double) -> String {
+        "\(Int((clamp(fraction) * 100).rounded()))%"
+    }
+
+    private func modelName(_ model: QuotaModelSnapshot) -> String {
+        let label = model.label?.trimmingCharacters(in: .whitespaces) ?? ""
+        return label.isEmpty ? model.model : label
+    }
+
+    private var creditsText: String {
+        guard let quota else { return "未同步" }
+        if let available = quota.availableCredits {
+            if let monthly = quota.monthlyCredits, monthly > 0 {
+                return "积分 \(Int(available.rounded())) / \(Int(monthly.rounded()))"
+            }
+            return "积分 \(Int(available.rounded()))"
+        }
+        return quota.planName ?? ""
+    }
+
+    private var statusText: String {
+        guard let quota else { return "在 Buoy 设置里启用本地 Antigravity" }
+        if quota.models.isEmpty {
+            return quota.message.isEmpty ? "还没有读到配额" : quota.message
+        }
+        return quota.message
+    }
+}
+
+struct BuoyQuotaWidget: Widget {
+    let kind = "BuoyQuotaWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: QuotaProvider()) { entry in
+            QuotaWidgetView(entry: entry)
+                .widgetURL(URL(string: "buoy://quota"))
+        }
+        .configurationDisplayName("Buoy 配额")
+        .description("查看 Antigravity 各模型剩余配额。")
+        .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
+    }
+}
+
 struct BuoyUsageWidget: Widget {
     let kind = "BuoyUsageWidget"
 
@@ -320,5 +583,6 @@ struct BuoyUsageWidget: Widget {
 struct BuoyWidgetBundle: WidgetBundle {
     var body: some Widget {
         BuoyUsageWidget()
+        BuoyQuotaWidget()
     }
 }

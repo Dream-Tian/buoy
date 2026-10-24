@@ -122,7 +122,13 @@ public partial class App : Application
             return;
         }
 
+        var quota = uri is not null && uri.Contains("quota", StringComparison.OrdinalIgnoreCase);
         ShowMain();
+        if (quota && Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow is MainWindow window)
+        {
+            window.ShowPage("Quota");
+        }
     }
 
     public static void UpdateTrayTip(string text)
