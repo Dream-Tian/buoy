@@ -438,7 +438,7 @@ struct QuotaWidgetView: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("配额")
                     .font(.system(size: 10, weight: .semibold))
@@ -449,6 +449,8 @@ struct QuotaWidgetView: View {
                     .lineLimit(1)
             }
 
+            Spacer(minLength: 4)
+
             if groups.isEmpty {
                 Text(statusText)
                     .font(.system(size: 10))
@@ -456,19 +458,19 @@ struct QuotaWidgetView: View {
                     .lineLimit(3)
                 Spacer(minLength: 0)
             } else {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(Array(groups.prefix(2))) { group in
-                        VStack(spacing: 4) {
+                        VStack(spacing: 5) {
                             RingMeter(fraction: group.fraction, lineWidth: 5)
-                                .frame(width: 42, height: 42)
+                                .frame(width: 46, height: 46)
                             Text(percentText(group.fraction))
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                             Text(group.title)
                                 .font(.system(size: 8))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(0.7)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -480,7 +482,7 @@ struct QuotaWidgetView: View {
     }
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Antigravity 配额")
                     .font(.system(size: 11, weight: .semibold))
@@ -491,6 +493,8 @@ struct QuotaWidgetView: View {
                     .lineLimit(1)
             }
 
+            Spacer(minLength: 6)
+
             if groups.isEmpty {
                 Text(statusText)
                     .font(.system(size: 10))
@@ -498,7 +502,7 @@ struct QuotaWidgetView: View {
                     .lineLimit(2)
                 Spacer(minLength: 0)
             } else {
-                VStack(spacing: 6) {
+                VStack(spacing: 7) {
                     ForEach(groups) { group in
                         groupRow(group)
                     }
