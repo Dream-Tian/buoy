@@ -14,6 +14,7 @@ public sealed record AntigravityQuotaSnapshot(
     string? PlanName,
     decimal? AvailableCredits,
     decimal? MonthlyCredits,
+    DateTimeOffset? ResetsAt,
     IReadOnlyList<AntigravityModelQuota> Models);
 
 /// <summary>
@@ -29,7 +30,7 @@ public sealed class AntigravityQuotaClient
         var processes = ParseProcesses(await ReadCommandLinesAsync(cancellationToken));
         if (processes.Count == 0)
         {
-            return new AntigravityQuotaSnapshot("Antigravity 未运行。请先打开并登录 IDE，再点刷新。", null, null, null, []);
+            return new AntigravityQuotaSnapshot("Antigravity 未运行。请先打开并登录 IDE，再点刷新。", null, null, null, null, []);
         }
 
         var listeners = ParseListeners(await ReadListenersAsync(cancellationToken));
@@ -52,7 +53,7 @@ public sealed class AntigravityQuotaClient
             }
         }
 
-        return new AntigravityQuotaSnapshot(failure ?? "已找到 Antigravity 进程，尚未发现本机监听端口", null, null, null, []);
+        return new AntigravityQuotaSnapshot(failure ?? "已找到 Antigravity 进程，尚未发现本机监听端口", null, null, null, null, []);
     }
 
     private async Task<AntigravityQuotaSnapshot?> TryStatusAsync(Uri baseUri, string csrf, CancellationToken cancellationToken)
@@ -88,6 +89,7 @@ public sealed class AntigravityQuotaClient
         var planInfo = Object(planStatus, "planInfo") ?? Object(userStatus, "planInfo") ?? Object(root, "planInfo");
         var cascade = Object(userStatus, "cascadeModelConfigData") ?? Object(root, "cascadeModelConfigData");
         var models = new List<AntigravityModelQuota>();
+        DateTimeOffset? resetsAt = null;
         if (Property(cascade, "clientModelConfigs") is { ValueKind: JsonValueKind.Array } configs)
         {
             foreach (var config in configs.EnumerateArray())
@@ -106,6 +108,13 @@ public sealed class AntigravityQuotaClient
                     fraction = null;
                 }
 
+                if (Text(quota, "resetTime") is { } resetText
+                    && DateTimeOffset.TryParse(resetText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var reset)
+                    && (resetsAt is null || reset < resetsAt))
+                {
+                    resetsAt = reset;
+                }
+
                 models.Add(new AntigravityModelQuota(model, Text(config, "label"), fraction));
             }
         }
@@ -114,7 +123,7 @@ public sealed class AntigravityQuotaClient
         var monthly = Decimal(planInfo, "monthlyPromptCredits");
         var available = Decimal(planStatus, "availablePromptCredits") ?? Decimal(planInfo, "availablePromptCredits");
         var message = planName is null && models.Count == 0 ? "Antigravity 返回未包含配额信息" : "配额已读取";
-        return new AntigravityQuotaSnapshot(message, planName, available, monthly, models);
+        return new AntigravityQuotaSnapshot(message, planName, available, monthly, resetsAt, models);
     }
 
     private static async Task<string> ReadCommandLinesAsync(CancellationToken cancellationToken)

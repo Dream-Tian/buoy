@@ -317,9 +317,10 @@ public partial class MainWindow : Window
         }
 
         var quota = await _quotaClient.ReadAsync();
+        var resetsAt = quota.ResetsAt is { } reset ? $"重置 {reset.LocalDateTime:HH:mm}" : null;
         QuotaPageSummary.Text = quota.Models.Count == 0
             ? quota.PlanName ?? string.Empty
-            : string.Join(" · ", new[] { $"{quota.Models.Count} 个模型", quota.PlanName }.Where(item => !string.IsNullOrWhiteSpace(item)));
+            : string.Join(" · ", new[] { $"{quota.Models.Count} 个模型", quota.PlanName, resetsAt }.Where(item => !string.IsNullOrWhiteSpace(item)));
         QuotaStatus.Text = quota.Message;
         QuotaList.Children.Clear();
         for (var index = 0; index < quota.Models.Count; index++)
@@ -348,6 +349,7 @@ public partial class MainWindow : Window
             quota.PlanName,
             (double?)quota.AvailableCredits,
             (double?)quota.MonthlyCredits,
+            quota.ResetsAt?.ToUnixTimeSeconds(),
             DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             quota.Models
                 .Select(item => new WidgetQuotaModel(item.Model, item.Label, (double?)item.RemainingFraction))

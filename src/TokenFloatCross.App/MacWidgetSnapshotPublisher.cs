@@ -186,6 +186,7 @@ internal sealed record WidgetQuotaSnapshot(
     string? PlanName,
     double? AvailableCredits,
     double? MonthlyCredits,
+    long? ResetsAtUnixSeconds,
     long UpdatedAtUnixSeconds,
     IReadOnlyList<WidgetQuotaModel> Models);
 

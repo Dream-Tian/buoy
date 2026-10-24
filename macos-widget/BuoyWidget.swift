@@ -53,6 +53,7 @@ struct QuotaSnapshot: Codable {
     let planName: String?
     let availableCredits: Double?
     let monthlyCredits: Double?
+    let resetsAtUnixSeconds: Int64?
     let updatedAtUnixSeconds: Int64
     let models: [QuotaModelSnapshot]
 }
@@ -359,6 +360,7 @@ extension UsageSnapshot {
             planName: "Pro",
             availableCredits: 120,
             monthlyCredits: 250,
+            resetsAtUnixSeconds: Int64(Date().timeIntervalSince1970) + 5400,
             updatedAtUnixSeconds: Int64(Date().timeIntervalSince1970),
             models: [
                 QuotaModelSnapshot(model: "gemini-3-pro", label: "Gemini 3 Pro", remainingFraction: 0.72),
@@ -475,6 +477,12 @@ struct QuotaWidgetView: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
+                if !resetText.isEmpty {
+                    Text(resetText)
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
                 Spacer(minLength: 0)
             }
         }
@@ -487,7 +495,7 @@ struct QuotaWidgetView: View {
                 Text("Antigravity 配额")
                     .font(.system(size: 11, weight: .semibold))
                 Spacer(minLength: 4)
-                Text(quota?.planName ?? "")
+                Text(headerDetailText)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -549,6 +557,21 @@ struct QuotaWidgetView: View {
 
     private func percentText(_ fraction: Double) -> String {
         "\(Int((clamp(fraction) * 100).rounded()))%"
+    }
+
+    private var resetText: String {
+        guard let seconds = quota?.resetsAtUnixSeconds, seconds > 0 else { return "" }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return "重置 " + formatter.string(from: Date(timeIntervalSince1970: TimeInterval(seconds)))
+    }
+
+    private var headerDetailText: String {
+        [quota?.planName, resetText].compactMap { value in
+            guard let value, !value.isEmpty else { return nil }
+            return value
+        }.joined(separator: " · ")
     }
 
     private var statusText: String {
