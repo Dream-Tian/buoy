@@ -16,11 +16,19 @@ public partial class SettingsWindow : Window
 {
     private readonly NewApiClient _client = new();
     private readonly AntigravityQuotaClient _quotaClient = new();
+    private readonly MainWindow? _mainWindow;
     private bool _loading = true;
 
     public SettingsWindow()
+        : this(null)
     {
+    }
+
+    public SettingsWindow(MainWindow? mainWindow)
+    {
+        _mainWindow = mainWindow;
         InitializeComponent();
+
         PointerPressed += (_, eventArgs) =>
         {
             if (eventArgs.Source is Visual source &&
@@ -43,10 +51,13 @@ public partial class SettingsWindow : Window
         AntigravityBox.IsChecked = settings.AntigravityUsageEnabled;
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
+        WidgetModeBox.IsChecked = settings.WidgetMode;
         LaunchAtLoginBox.IsChecked = StartupLaunch.IsEnabled();
         AutoUpdateBox.IsChecked = settings.AutoUpdateCheck;
         ManifestBox.Text = settings.ManifestUrl;
         SelectInterval(settings.NormalizedRefreshSeconds);
+        SelectFont(settings.FontStyle);
+        SelectWidgetRange(CrossSettingsStore.NormalizeRange(settings.WidgetRange));
         UpdateThemeButtons(settings.UseDarkTheme);
         Topmost = settings.KeepWindowOnTop;
         RefreshDataPage();
@@ -157,12 +168,32 @@ public partial class SettingsWindow : Window
         var enabled = KeepOnTopBox.IsChecked == true;
         Save(App.Settings with { KeepWindowOnTop = enabled });
         Topmost = enabled;
-        if (Owner is Window owner)
+        _mainWindow?.RefreshWindowMode();
+        StatusText.Text = enabled ? "窗口已置于顶层" : "已取消置于顶层";
+    }
+
+    private void FontBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || FontBox.SelectedItem is not ComboBoxItem { Tag: string key })
         {
-            owner.Topmost = enabled;
+            return;
         }
 
-        StatusText.Text = enabled ? "窗口已置于顶层" : "已取消置于顶层";
+        Save(App.Settings with { FontStyle = key });
+        App.ApplyFont(key);
+        StatusText.Text = $"字体已切换为 {FontBox.SelectedItem}";
+    }
+
+    private void WidgetRangeBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || WidgetRangeBox.SelectedItem is not ComboBoxItem { Tag: string key })
+        {
+            return;
+        }
+
+        Save(App.Settings with { WidgetRange = key });
+        _mainWindow?.RefreshWidgetRange();
+        StatusText.Text = $"系统小组件范围：{WidgetRangeBox.SelectedItem}";
     }
 
     private void LaunchAtLoginBox_Click(object? sender, RoutedEventArgs e)
@@ -179,6 +210,17 @@ public partial class SettingsWindow : Window
             LaunchAtLoginBox.IsChecked = StartupLaunch.IsEnabled();
             StatusText.Text = $"开机自启设置失败：{exception.Message}";
         }
+    }
+
+    private void WidgetModeBox_Click(object? sender, RoutedEventArgs e)
+    {
+        var enabled = WidgetModeBox.IsChecked == true;
+        Save(App.Settings with { WidgetMode = enabled });
+        _mainWindow?.RefreshWindowMode();
+
+        StatusText.Text = enabled
+            ? "已进入桌面小组件。拖动会记住位置；重启后不再显示 Dock 图标。"
+            : "已切回标准窗口。Dock 图标重启后恢复。";
     }
 
     private void OpenFolderButton_Click(object? sender, RoutedEventArgs e)
@@ -285,6 +327,34 @@ public partial class SettingsWindow : Window
     {
         App.Settings = settings;
         App.SettingsStore.Save(settings);
+    }
+
+    private void SelectWidgetRange(string key)
+    {
+        foreach (var item in WidgetRangeBox.Items.OfType<ComboBoxItem>())
+        {
+            if (item.Tag is string tag && tag == key)
+            {
+                WidgetRangeBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        WidgetRangeBox.SelectedIndex = 0;
+    }
+
+    private void SelectFont(string key)
+    {
+        foreach (var item in FontBox.Items.OfType<ComboBoxItem>())
+        {
+            if (item.Tag is string tag && tag == key)
+            {
+                FontBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        FontBox.SelectedIndex = 0;
     }
 
     private void SelectInterval(int seconds)

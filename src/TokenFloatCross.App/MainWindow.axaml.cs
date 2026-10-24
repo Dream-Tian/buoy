@@ -18,6 +18,10 @@ public partial class MainWindow : Window
     private readonly NewApiClient _client = new();
     private readonly AntigravityQuotaClient _quotaClient = new();
     private readonly DispatcherTimer _refreshTimer = new();
+    private readonly DispatcherTimer _widgetSaveTimer = new() { Interval = TimeSpan.FromSeconds(1.2) };
+    private bool _widgetApplied;
+    private bool _lastRefreshHadError;
+    private DateTimeOffset? _lastSuccessfulRefreshUtc;
     private const double TrendPlotLeft = 40;
     private const double TrendPlotTop = 10;
     private const double TrendPlotRight = 28;
@@ -59,7 +63,133 @@ public partial class MainWindow : Window
             await RefreshAsync();
         };
         ApplyWindowSettings();
-        Opened += async (_, _) => await RefreshAsync();
+        ApplyWidgetMode();
+        Opened += async (_, _) =>
+        {
+            ApplyWidgetLevel();
+            ApplyWidgetPosition();
+            await RefreshAsync();
+        };
+        PositionChanged += (_, _) =>
+        {
+            if (!App.Settings.WidgetMode)
+            {
+                return;
+            }
+
+            _widgetSaveTimer.Stop();
+            _widgetSaveTimer.Start();
+        };
+        _widgetSaveTimer.Tick += (_, _) =>
+        {
+            _widgetSaveTimer.Stop();
+            SaveWidgetPosition();
+        };
+    }
+
+    /// <summary>
+    /// 标准窗口和桌面小组件共用同一份数据，只在布局和窗口层级上切换。
+    /// </summary>
+    public void ApplyWidgetMode()
+    {
+        var widget = App.Settings.WidgetMode;
+        var changed = widget != _widgetApplied;
+        _widgetApplied = widget;
+
+        FullShell.IsVisible = !widget;
+        WidgetShell.IsVisible = widget;
+        Topmost = App.Settings.KeepWindowOnTop;
+
+        if (!changed)
+        {
+            return;
+        }
+
+        if (widget)
+        {
+            Width = 300;
+            Height = 156;
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            ApplyWidgetPosition();
+        }
+        else
+        {
+            Width = 560;
+            Height = 392;
+            CenterOnWorkingArea();
+        }
+    }
+
+    public void RefreshWindowMode()
+    {
+        ApplyWidgetMode();
+        ApplyWidgetLevel();
+    }
+
+    private void ApplyWidgetLevel()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            MacWindowLevel.SetDesktopLevel(this, App.Settings.WidgetMode && !App.Settings.KeepWindowOnTop, App.Settings.KeepWindowOnTop);
+        }
+    }
+
+    private void ApplyWidgetPosition()
+    {
+        if (!App.Settings.WidgetMode)
+        {
+            return;
+        }
+
+        if (App.Settings.WidgetX is int x && App.Settings.WidgetY is int y)
+        {
+            Position = new PixelPoint(x, y);
+        }
+        else if (Screens.Primary is { } screen)
+        {
+            // 默认放在桌面左下角，避开系统自带的小组件区。
+            var area = screen.WorkingArea;
+            Position = new PixelPoint(area.X + 28, Math.Max(area.Y + 28, area.Bottom - (int)Height - 40));
+        }
+    }
+
+    private void CenterOnWorkingArea()
+    {
+        if (Screens.Primary is not { } screen)
+        {
+            return;
+        }
+
+        var area = screen.WorkingArea;
+        Position = new PixelPoint(
+            area.X + Math.Max(0, (area.Width - (int)Width) / 2),
+            area.Y + Math.Max(0, (area.Height - (int)Height) / 2));
+    }
+
+    private void SaveWidgetPosition()
+    {
+        if (!App.Settings.WidgetMode)
+        {
+            return;
+        }
+
+        App.Settings = App.Settings with { WidgetX = Position.X, WidgetY = Position.Y };
+        App.SettingsStore.Save(App.Settings);
+    }
+
+    private void EnterWidget_Click(object? sender, RoutedEventArgs e)
+    {
+        App.Settings = App.Settings with { WidgetMode = true };
+        App.SettingsStore.Save(App.Settings);
+        RefreshWindowMode();
+        SetStatus("已切成桌面小组件，拖到桌面任意位置即可固定。");
+    }
+
+    private void ExitWidget_Click(object? sender, RoutedEventArgs e)
+    {
+        App.Settings = App.Settings with { WidgetMode = false };
+        App.SettingsStore.Save(App.Settings);
+        RefreshWindowMode();
     }
 
     public void ApplyWindowSettings()
@@ -72,11 +202,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void SettingsButton_Click(object? sender, RoutedEventArgs e)
+    private void SettingsButton_Click(object? sender, RoutedEventArgs e) => App.ShowSettings();
+
+    public async Task RefreshAfterSettingsAsync()
     {
-        var settings = new SettingsWindow();
-        await settings.ShowDialog(this);
         ApplyWindowSettings();
+        RefreshWindowMode();
         if (App.Settings.IsNewApiConfigured || App.Settings.AntigravityUsageEnabled)
         {
             await RefreshAsync();
@@ -125,7 +256,7 @@ public partial class MainWindow : Window
     private async Task RefreshAsync()
     {
         var settings = App.Settings;
-        StatusText.Text = "正在读取…";
+        SetStatus("正在读取…");
         var started = Stopwatch.StartNew();
         try
         {
@@ -135,20 +266,29 @@ public partial class MainWindow : Window
                     settings.NewApiBaseUrl,
                     settings.NewApiAccessToken,
                     settings.NewApiUserId));
-                StatusText.Text = $"已读取 {_events.Count} 条小时汇总";
+                _lastSuccessfulRefreshUtc = DateTimeOffset.UtcNow;
+                _lastRefreshHadError = false;
+                SetStatus($"已读取 {_events.Count} 条小时汇总");
                 Render();
+            }
+            else
+            {
+                _lastRefreshHadError = false;
+                SetStatus("未配置 NewAPI，点 ⚙ 填写地址和令牌。");
             }
         }
         catch (Exception exception)
         {
-            StatusText.Text = exception.Message.Contains("invalid access token", StringComparison.OrdinalIgnoreCase)
+            _lastRefreshHadError = true;
+            SetStatus(exception.Message.Contains("invalid access token", StringComparison.OrdinalIgnoreCase)
                 ? "NewAPI 拒绝了当前 Token。请在设置里重新粘贴访问令牌并保存。"
-                : exception.Message;
+                : exception.Message);
         }
         finally
         {
             started.Stop();
             App.LastRefreshDuration = started.Elapsed;
+            RenderWidget();
         }
 
         await ReadQuotaAsync();
@@ -193,7 +333,7 @@ public partial class MainWindow : Window
 
         if (_events.Count == 0)
         {
-            StatusText.Text = quota.Message;
+            SetStatus(quota.Message);
         }
     }
 
@@ -284,6 +424,94 @@ public partial class MainWindow : Window
         App.UpdateTrayTip($"今日 {FormatCount(today.TotalTokens)} · {today.RequestCount}次 · 消耗 {FormatUsd(todayQuota / QuotaPerUnit)}");
         RenderModels();
         DrawTrend();
+    }
+
+    /// <summary>
+    /// 桌面卡片固定显示今日总量和速率，跟主窗口共用同一批事件。
+    /// </summary>
+    private void RenderWidget()
+    {
+        var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
+        WidgetTokensText.Text = FormatCount(today.TotalTokens);
+        WidgetRequestsText.Text = today.RequestCount.ToString("N0");
+        WidgetRpmText.Text = FormatRate(today.AverageRpm);
+        WidgetTpmText.Text = FormatRate(today.AverageTpm);
+
+        if (!App.Settings.IsNewApiConfigured)
+        {
+            WidgetCaptionText.Text = "在 Buoy 里配置 NewAPI";
+            WidgetCaptionText.Foreground = Brush("AppMutedBrush");
+        }
+        else if (_lastRefreshHadError)
+        {
+            WidgetCaptionText.Text = "刷新失败";
+            WidgetCaptionText.Foreground = Brush("AppOrangeBrush");
+        }
+        else
+        {
+            WidgetCaptionText.Text = "今日 TOKEN";
+            WidgetCaptionText.Foreground = Brush("AppMutedBrush");
+        }
+
+        PublishWidgetSnapshot();
+    }
+
+    /// <summary>
+    /// 设置页切换系统小组件时间范围后立即重算并发布。
+    /// </summary>
+    public void RefreshWidgetRange() => PublishWidgetSnapshot();
+
+    /// <summary>
+    /// 系统小组件按设置页选择的时间范围发布数据。
+    /// </summary>
+    private void PublishWidgetSnapshot()
+    {
+        var (start, label) = ResolveWidgetRange(App.Settings.WidgetRange);
+        var rates = UsageMath.RatesFor(_events, start);
+        var models = UsageMath.ModelsFor(_events, start);
+        var topModels = models
+            .Take(3)
+            .Select(item => new WidgetModelUsage(
+                item.Model,
+                item.TotalTokens,
+                item.Requests,
+                rates.TotalTokens > 0 ? item.TotalTokens / (double)rates.TotalTokens : 0,
+                (double)(item.Quota / QuotaPerUnit)))
+            .ToArray();
+        var quota = _events
+            .Where(item => item.Timestamp.LocalDateTime >= start)
+            .Sum(item => item.Quota);
+
+        MacWidgetSnapshotPublisher.Publish(new WidgetUsageSnapshot(
+            rates.TotalTokens,
+            rates.RequestCount,
+            rates.AverageRpm,
+            rates.AverageTpm,
+            _lastSuccessfulRefreshUtc?.ToUnixTimeSeconds() ?? 0,
+            App.Settings.IsNewApiConfigured,
+            _lastRefreshHadError,
+            topModels,
+            (double)(quota / QuotaPerUnit),
+            label));
+    }
+
+    private static (DateTime Start, string Label) ResolveWidgetRange(string key)
+    {
+        var now = DateTime.Now;
+        return key switch
+        {
+            "week" => (now.Date.AddDays(-(((int)now.DayOfWeek + 6) % 7)), "本周"),
+            "month" => (new DateTime(now.Year, now.Month, 1), "本月"),
+            "24h" => (now.AddHours(-24), "最近 24 小时"),
+            "7d" => (now.AddDays(-7), "最近 7 天"),
+            "30d" => (now.AddDays(-30), "最近 30 天"),
+            _ => (now.Date, "今日")
+        };
+    }
+
+    private void SetStatus(string text)
+    {
+        StatusText.Text = text;
     }
 
     private void TrendMetricButton_Click(object? sender, RoutedEventArgs e)

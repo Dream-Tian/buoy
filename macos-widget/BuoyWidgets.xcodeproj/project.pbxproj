@@ -1,0 +1,78 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* BuoyWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* BuoyWidget.swift */; };
+		A10000000000000000000002 /* BuoyWidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* BuoyWidgetBridge.swift */; };
+		A10000000000000000000003 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* WidgetKit.framework */; };
+		A10000000000000000000004 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* SwiftUI.framework */; };
+		A10000000000000000000005 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* WidgetKit.framework */; };
+		A10000000000000000000006 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Foundation.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* BuoyWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuoyWidget.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* BuoyWidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuoyWidgetBridge.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* Widget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Widget-Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000004 /* BuoyWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BuoyWidget.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000005 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000006 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A20000000000000000000007 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		A20000000000000000000008 /* BuoyWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = BuoyWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000009 /* libBuoyWidgetBridge.dylib */ = {isa = PBXFileReference; explicitFileType = compiled.mach-o.dylib; includeInIndex = 0; path = libBuoyWidgetBridge.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Widget frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* WidgetKit.framework in Frameworks */, A10000000000000000000004 /* SwiftUI.framework in Frameworks */, ); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000002 /* Bridge frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* WidgetKit.framework in Frameworks */, A10000000000000000000006 /* Foundation.framework in Frameworks */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* Sources */, A40000000000000000000003 /* Frameworks */, A40000000000000000000004 /* Products */, ); sourceTree = "<group>"; };
+		A40000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (A20000000000000000000001 /* BuoyWidget.swift */, A20000000000000000000002 /* BuoyWidgetBridge.swift */, A20000000000000000000003 /* Widget-Info.plist */, A20000000000000000000004 /* BuoyWidget.entitlements */, ); name = Sources; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Frameworks */ = {isa = PBXGroup; children = (A20000000000000000000005 /* WidgetKit.framework */, A20000000000000000000006 /* SwiftUI.framework */, A20000000000000000000007 /* Foundation.framework */, ); name = Frameworks; sourceTree = "<group>"; };
+		A40000000000000000000004 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000008 /* BuoyWidget.appex */, A20000000000000000000009 /* libBuoyWidgetBridge.dylib */, ); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* BuoyWidget */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002 /* Build configuration list for BuoyWidget */; buildPhases = (A30000000000000000000003 /* Widget Sources */, A30000000000000000000001 /* Widget frameworks */, A30000000000000000000005 /* Widget Resources */, ); buildRules = (); dependencies = (); name = BuoyWidget; productName = BuoyWidget; productReference = A20000000000000000000008 /* BuoyWidget.appex */; productType = "com.apple.product-type.app-extension"; };
+		A50000000000000000000002 /* BuoyWidgetBridge */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000003 /* Build configuration list for BuoyWidgetBridge */; buildPhases = (A30000000000000000000004 /* Bridge Sources */, A30000000000000000000002 /* Bridge frameworks */, A30000000000000000000006 /* Bridge Resources */, ); buildRules = (); dependencies = (); name = BuoyWidgetBridge; productName = BuoyWidgetBridge; productReference = A20000000000000000000009 /* libBuoyWidgetBridge.dylib */; productType = "com.apple.product-type.library.dynamic"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A60000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 16.0; }; A50000000000000000000002 = {CreatedOnToolsVersion = 16.0; }; }; }; buildConfigurationList = A90000000000000000000001 /* Project configuration list for Project */; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, ); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000004 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001 /* BuoyWidget */, A50000000000000000000002 /* BuoyWidgetBridge */, ); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000005 /* Widget Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000006 /* Bridge Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000003 /* Widget Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* BuoyWidget.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		A30000000000000000000004 /* Bridge Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* BuoyWidgetBridge.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70000000000000000000001 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
+		A70000000000000000000002 /* Project Release */ = {isa = XCBuildConfiguration; buildSettings = {MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Release; };
+		A70000000000000000000003 /* Widget Debug */ = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = BuoyWidget.entitlements; CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Widget-Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = app.buoy.desktop.widget; PRODUCT_NAME = BuoyWidget; SDKROOT = macosx; SKIP_INSTALL = YES; SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor; SWIFT_VERSION = 5.0; }; name = Debug; };
+		A70000000000000000000004 /* Widget Release */ = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = BuoyWidget.entitlements; CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Widget-Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = app.buoy.desktop.widget; PRODUCT_NAME = BuoyWidget; SDKROOT = macosx; SKIP_INSTALL = YES; SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor; SWIFT_VERSION = 5.0; }; name = Release; };
+		A70000000000000000000005 /* Bridge Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; DEFINES_MODULE = NO; EXECUTABLE_PREFIX = lib; EXECUTABLE_SUFFIX = .dylib; INSTALL_PATH = /usr/local/lib; MACOSX_DEPLOYMENT_TARGET = 14.0; MACH_O_TYPE = mh_dylib; PRODUCT_BUNDLE_IDENTIFIER = app.buoy.desktop.widgetbridge; PRODUCT_NAME = BuoyWidgetBridge; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
+		A70000000000000000000006 /* Bridge Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; DEFINES_MODULE = NO; EXECUTABLE_PREFIX = lib; EXECUTABLE_SUFFIX = .dylib; INSTALL_PATH = /usr/local/lib; MACOSX_DEPLOYMENT_TARGET = 14.0; MACH_O_TYPE = mh_dylib; PRODUCT_BUNDLE_IDENTIFIER = app.buoy.desktop.widgetbridge; PRODUCT_NAME = BuoyWidgetBridge; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Release; };
+		A70000000000000000000007 /* Project Release */ = {isa = XCBuildConfiguration; buildSettings = {MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Release; };
+		A70000000000000000000008 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Project configuration list for Project */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000008 /* Project Debug */, A70000000000000000000007 /* Project Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000002 /* Build configuration list for BuoyWidget */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000003 /* Widget Debug */, A70000000000000000000004 /* Widget Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A90000000000000000000003 /* Build configuration list for BuoyWidgetBridge */ = {isa = XCConfigurationList; buildConfigurations = (A70000000000000000000005 /* Bridge Debug */, A70000000000000000000006 /* Bridge Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}

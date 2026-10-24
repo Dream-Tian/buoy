@@ -1,4 +1,5 @@
 using Avalonia;
+using Buoy.Settings;
 
 namespace Buoy;
 
@@ -9,8 +10,19 @@ internal static class Program
         .StartWithClassicDesktopLifetime(args);
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    {
+        var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+        if (OperatingSystem.IsMacOS())
+        {
+            // 小组件模式下不占 Dock，只留菜单栏图标。
+            var widgetMode = new CrossSettingsStore().Load().WidgetMode;
+            builder = builder.With(new MacOSPlatformOptions { ShowInDock = !widgetMode });
+        }
+
+        return builder;
+    }
 }

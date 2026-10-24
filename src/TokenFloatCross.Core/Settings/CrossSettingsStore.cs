@@ -17,7 +17,12 @@ public sealed record CrossAppSettings(
     bool AutoUpdateCheck = true,
     string ManifestUrl = "https://github.com/Dream-Tian/TokenFloat/releases/latest/download/update-manifest.json",
     DateTimeOffset? UpdateLastCheckedUtc = null,
-    bool LaunchAtLogin = false)
+    bool LaunchAtLogin = false,
+    bool WidgetMode = false,
+    int? WidgetX = null,
+    int? WidgetY = null,
+    string FontStyle = "system",
+    string WidgetRange = "today")
 {
     public bool IsNewApiConfigured =>
         !string.IsNullOrWhiteSpace(NewApiBaseUrl) &&
@@ -112,7 +117,12 @@ public sealed class CrossSettingsStore
             AutoUpdateCheck = settings.AutoUpdateCheck,
             ManifestUrl = settings.ManifestUrl.Trim(),
             UpdateLastCheckedUtc = settings.UpdateLastCheckedUtc,
-            LaunchAtLogin = settings.LaunchAtLogin
+            LaunchAtLogin = settings.LaunchAtLogin,
+            WidgetMode = settings.WidgetMode,
+            WidgetX = settings.WidgetX,
+            WidgetY = settings.WidgetY,
+            FontStyle = NormalizeFont(settings.FontStyle),
+            WidgetRange = NormalizeRange(settings.WidgetRange)
         };
         File.WriteAllText(_path, JsonSerializer.Serialize(stored, new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -263,7 +273,12 @@ public sealed class CrossSettingsStore
             ? new CrossAppSettings().ManifestUrl
             : stored.ManifestUrl.Trim(),
         stored.UpdateLastCheckedUtc,
-        stored.LaunchAtLogin);
+        stored.LaunchAtLogin,
+        stored.WidgetMode,
+        stored.WidgetX,
+        stored.WidgetY,
+        NormalizeFont(stored.FontStyle),
+        NormalizeRange(stored.WidgetRange));
 
     private sealed class StoredSettings
     {
@@ -290,5 +305,20 @@ public sealed class CrossSettingsStore
         public DateTimeOffset? UpdateLastCheckedUtc { get; set; }
 
         public bool LaunchAtLogin { get; set; }
+
+        public bool WidgetMode { get; set; }
+
+        public int? WidgetX { get; set; }
+
+        public int? WidgetY { get; set; }
+
+        public string? FontStyle { get; set; }
+
+        public string? WidgetRange { get; set; }
     }
+
+    public static string NormalizeFont(string? key) => key is "rounded" or "song" or "kai" or "mono" ? key : "system";
+
+    public static string NormalizeRange(string? key) =>
+        key is "week" or "month" or "24h" or "7d" or "30d" ? key : "today";
 }

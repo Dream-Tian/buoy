@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Buoy.TrayMenuWindow"
         Title="Buoy"
+        FontFamily="{DynamicResource AppFontFamily}"
         Width="112"
         SizeToContent="Height"
         CanResize="False"

@@ -25,14 +25,35 @@ public partial class App : Application
         Settings = SettingsStore.Load();
         AvaloniaXamlLoader.Load(this);
         ApplyTheme(Settings.UseDarkTheme);
+        ApplyFont(Settings.FontStyle);
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            MacWidgetSnapshotPublisher.StartServer();
             desktop.MainWindow = new MainWindow();
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            if (desktop.Args?.FirstOrDefault(IsBuoyUri) is { } startupUri)
+            {
+                HandleUri(startupUri);
+            }
+
+            if (ApplicationLifetime is IActivatableLifetime activatable)
+            {
+                activatable.Activated += (_, args) =>
+                {
+                    if (args.Kind == ActivationKind.OpenUri)
+                    {
+                        var uri = args is ProtocolActivatedEventArgs protocol
+                            ? protocol.Uri?.ToString()
+                            : null;
+                        HandleUri(uri);
+                    }
+                };
+            }
+
             if (OperatingSystem.IsWindows())
             {
                 WindowsTrayIcon.Install();
@@ -50,6 +71,8 @@ public partial class App : Application
                 var menu = new NativeMenu();
                 var show = new NativeMenuItem("显示");
                 show.Click += (_, _) => ShowMain();
+                var settings = new NativeMenuItem("设置");
+                settings.Click += (_, _) => ShowSettings();
                 var exit = new NativeMenuItem("退出");
                 exit.Click += (_, _) =>
                 {
@@ -57,14 +80,33 @@ public partial class App : Application
                     desktop.Shutdown();
                 };
                 menu.Add(show);
+                menu.Add(settings);
                 menu.Add(exit);
                 tray.Menu = menu;
                 tray.Clicked += (_, _) => ShowMain();
                 TrayIcon.SetIcons(this, new TrayIcons { tray });
+                if (OperatingSystem.IsMacOS())
+                {
+                    ApplyTrayTemplate(tray);
+                }
             }
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static bool IsBuoyUri(string argument) =>
+        argument.StartsWith("buoy:", StringComparison.OrdinalIgnoreCase);
+
+    private static void HandleUri(string? uri)
+    {
+        if (uri is not null && uri.Contains("settings", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowSettings();
+            return;
+        }
+
+        ShowMain();
     }
 
     public static void UpdateTrayTip(string text)
@@ -89,6 +131,48 @@ public partial class App : Application
         window.Activate();
     }
 
+    private static SettingsWindow? _settingsWindow;
+
+    /// <summary>
+    /// 设置窗口按独立窗口显示，不阻塞主窗口；点主窗口可以把它抬到设置上面。
+    /// </summary>
+    public static void ShowSettings()
+    {
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        if (_settingsWindow is { } existing)
+        {
+            if (existing.IsVisible)
+            {
+                existing.Activate();
+            }
+            else
+            {
+                existing.Show();
+                existing.Activate();
+            }
+
+            return;
+        }
+
+        var main = desktop.MainWindow as MainWindow;
+        var window = new SettingsWindow(main);
+        _settingsWindow = window;
+        window.Closed += async (_, _) =>
+        {
+            _settingsWindow = null;
+            if (main is not null)
+            {
+                await main.RefreshAfterSettingsAsync();
+            }
+        };
+        window.Show();
+        window.Activate();
+    }
+
     private static TrayMenuWindow? _trayMenu;
 
     public static void ShowTrayMenu()
@@ -99,27 +183,44 @@ public partial class App : Application
         _trayMenu.OpenAtCursor();
     }
 
-    private static WindowIcon CreateTrayIcon()
+    /// <summary>
+    /// Avalonia 11.3 没有公开 template 开关，原生实现里有；反射打开后菜单栏会按深浅色自动着色。
+    /// </summary>
+    private static void ApplyTrayTemplate(TrayIcon tray)
     {
-        var bitmap = new WriteableBitmap(new PixelSize(32, 32), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
-        using (var buffer = bitmap.Lock())
+        try
         {
-            var pixels = new byte[32 * 32 * 4];
-            for (var y = 0; y < 32; y++)
+            var impl = typeof(TrayIcon)
+                .GetProperty("Impl", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                ?.GetValue(tray);
+            if (impl is null)
             {
-                for (var x = 0; x < 32; x++)
-                {
-                    var index = (y * 32 + x) * 4;
-                    var inside = x is > 3 and < 28 && y is > 6 and < 26;
-                    var bar = inside && y is > 16 and < 21 && x is > 7 and < 24;
-                    pixels[index] = bar ? (byte)69 : (byte)255;
-                    pixels[index + 1] = bar ? (byte)122 : (byte)255;
-                    pixels[index + 2] = bar ? (byte)31 : (byte)255;
-                    pixels[index + 3] = inside ? (byte)255 : (byte)0;
-                }
+                return;
             }
 
-            System.Runtime.InteropServices.Marshal.Copy(pixels, 0, buffer.Address, pixels.Length);
+            var iface = impl.GetType().GetInterfaces().FirstOrDefault(item => item.Name == "ITrayIconWithIsTemplateImpl");
+            iface?.GetMethod("SetIsTemplateIcon")?.Invoke(impl, new object[] { true });
+        }
+        catch (Exception)
+        {
+            // 反射失败时保留白底黑边图标，深浅菜单栏都能看见。
+        }
+    }
+
+    private static WindowIcon CreateTrayIcon()
+    {
+        const int size = 32;
+        var bitmap = new RenderTargetBitmap(new PixelSize(size, size), new Vector(96, 96));
+        using (var context = bitmap.CreateDrawingContext())
+        {
+            var ink = new SolidColorBrush(Colors.White);
+            var outline = new Pen(new SolidColorBrush(Colors.Black), 1.1);
+            context.DrawEllipse(ink, outline, new Point(16, 5.6), 3, 3);
+            context.DrawRectangle(ink, outline, new Rect(14.6, 8, 2.8, 5.6), 1.4, 1.4);
+
+            var body = StreamGeometry.Parse("M11.5,12.5 C11.5,10.6 20.5,10.6 20.5,12.5 L24.2,24 C25.2,27.6 21,29.6 16,29.6 C11,29.6 6.8,27.6 7.8,24 Z");
+            var band = new RectangleGeometry(new Rect(6, 18, 20, 3));
+            context.DrawGeometry(ink, outline, new CombinedGeometry(GeometryCombineMode.Exclude, body, band));
         }
 
         return new WindowIcon(bitmap);
@@ -130,6 +231,25 @@ public partial class App : Application
         Current!.Resources[key] = new SolidColorBrush(Color.Parse(hex));
     }
 
+    public static void ApplyFont(string key)
+    {
+        if (Current is null)
+        {
+            return;
+        }
+
+        Current.Resources["AppFontFamily"] = new FontFamily(FontFamilyFor(key));
+    }
+
+    private static string FontFamilyFor(string key) => key switch
+    {
+        "rounded" => "SF Pro Rounded, Yuanti SC, YouYuan, PingFang SC, Microsoft YaHei UI",
+        "song" => "Songti SC, STSong, SimSun, serif",
+        "kai" => "Kaiti SC, KaiTi, STKaiti, serif",
+        "mono" => "SF Mono, Menlo, Consolas, monospace",
+        _ => "SF Pro Text, SF Pro Display, PingFang SC, Helvetica Neue, Microsoft YaHei UI"
+    };
+
     public static void ApplyTheme(bool dark)
     {
         if (Current is null)
@@ -138,18 +258,21 @@ public partial class App : Application
         }
 
         Current.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
-        SetBrush("AppBackgroundBrush", dark ? "#000000" : "#FFFFFF");
-        SetBrush("AppPanelBrush", dark ? "#000000" : "#FFFFFF");
-        SetBrush("AppTextBrush", dark ? "#FFFFFF" : "#111111");
-        SetBrush("AppMutedBrush", dark ? "#A3A3A3" : "#666666");
-        SetBrush("AppBorderBrush", dark ? "#2E2E2E" : "#E5E5E5");
-        SetBrush("AppAccentBrush", dark ? "#7DCEA0" : "#1F7A45");
-        SetBrush("AppAccentSoftBrush", dark ? "#16301F" : "#E8F5EE");
-        SetBrush("AppOrangeBrush", dark ? "#F0B45A" : "#C56A00");
-        SetBrush("AppBlueBrush", dark ? "#7EB6E0" : "#1D6FB8");
+        SetBrush("AppBackgroundBrush", dark ? "#1C1C1E" : "#FFFFFF");
+        SetBrush("AppPanelBrush", dark ? "#1C1C1E" : "#FFFFFF");
+        SetBrush("AppTextBrush", dark ? "#F5F5F7" : "#1D1D1F");
+        SetBrush("AppMutedBrush", dark ? "#98989D" : "#86868B");
+        SetBrush("AppBorderBrush", dark ? "#38383A" : "#E8E8ED");
+        SetBrush("AppAccentBrush", dark ? "#5FD08A" : "#2E9E5B");
+        SetBrush("AppAccentSoftBrush", dark ? "#17301F" : "#EAF7EF");
+        SetBrush("AppOrangeBrush", dark ? "#F0B45A" : "#C26A00");
+        SetBrush("AppBlueBrush", dark ? "#6FB3E8" : "#0A6CBF");
         SetBrush("AppVioletBrush", dark ? "#C4B0F0" : "#6B4FB5");
-        SetBrush("AppSubtleBrush", dark ? "#737373" : "#999999");
-        SetBrush("AppSegmentBrush", dark ? "#141414" : "#F3F3F3");
-        SetBrush("AppFrameBrush", dark ? "#FFFFFF" : "#111111");
+        SetBrush("AppSubtleBrush", dark ? "#7C7C80" : "#A1A1A6");
+        SetBrush("AppSegmentBrush", dark ? "#2C2C2E" : "#F2F2F4");
+        SetBrush("AppFrameBrush", dark ? "#38383A" : "#E8E8ED");
+        SetBrush("AppGroupBrush", dark ? "#2C2C2E" : "#F5F5F7");
+        SetBrush("AppFieldBrush", dark ? "#2C2C2E" : "#FFFFFF");
+        SetBrush("AppFieldBorderBrush", dark ? "#48484A" : "#D8D8DE");
     }
 }

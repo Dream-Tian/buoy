@@ -43,10 +43,12 @@ public sealed record ModelUsageSummary(
 /// </summary>
 public static class UsageMath
 {
-    public static UsageRates RatesFor(IEnumerable<TokenUsageEvent> events, UsagePeriod period, DateTime? now = null)
+    public static UsageRates RatesFor(IEnumerable<TokenUsageEvent> events, UsagePeriod period, DateTime? now = null) =>
+        RatesFor(events, PeriodStart(period, now ?? DateTime.Now), now);
+
+    public static UsageRates RatesFor(IEnumerable<TokenUsageEvent> events, DateTime start, DateTime? now = null)
     {
         var current = now ?? DateTime.Now;
-        var start = PeriodStart(period, current);
         long requests = 0;
         long tokens = 0;
         foreach (var item in events)
@@ -68,10 +70,15 @@ public static class UsageMath
     public static IReadOnlyList<ModelUsageSummary> ModelsFor(
         IEnumerable<TokenUsageEvent> events,
         UsagePeriod period,
+        DateTime? now = null) =>
+        ModelsFor(events, PeriodStart(period, now ?? DateTime.Now), now);
+
+    public static IReadOnlyList<ModelUsageSummary> ModelsFor(
+        IEnumerable<TokenUsageEvent> events,
+        DateTime start,
         DateTime? now = null)
     {
         var current = now ?? DateTime.Now;
-        var start = PeriodStart(period, current);
         return events
             .Where(item =>
             {
