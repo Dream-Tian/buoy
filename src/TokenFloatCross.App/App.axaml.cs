@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Buoy.Settings;
 
 namespace Buoy;
@@ -22,6 +23,8 @@ public partial class App : Application
 
     public override void Initialize()
     {
+        // 系统弹窗（比如重启时的「中断了重启」）用的是这个名字，默认值是 "Avalonia Application"。
+        Name = "Buoy";
         Settings = SettingsStore.Load();
         AvaloniaXamlLoader.Load(this);
         ApplyTheme(Settings.UseDarkTheme);
@@ -35,6 +38,19 @@ public partial class App : Application
             MacWidgetSnapshotPublisher.StartServer();
             desktop.MainWindow = new MainWindow();
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            // 菜单栏常驻用 OnExplicitShutdown，关窗口不退出；但系统注销/重启发来的退出请求要放行，
+            // 否则 macOS 会认为应用拒绝退出，弹「中断了重启」并卡住重启。
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                if (IsExiting)
+                {
+                    return;
+                }
+
+                IsExiting = true;
+                Dispatcher.UIThread.Post(() => desktop.Shutdown());
+            };
             if (desktop.Args?.FirstOrDefault(IsBuoyUri) is { } startupUri)
             {
                 HandleUri(startupUri);
