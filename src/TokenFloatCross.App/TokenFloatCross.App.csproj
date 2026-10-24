@@ -10,6 +10,7 @@
     <RootNamespace>Buoy</RootNamespace>
     <AssemblyName>Buoy</AssemblyName>
     <RuntimeIdentifiers>win-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
