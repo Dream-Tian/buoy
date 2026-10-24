@@ -371,16 +371,32 @@ extension UsageSnapshot {
 
 struct QuotaGroupSnapshot: Identifiable {
     let title: String
+    let shortTitle: String
+    let modelCount: Int
     let fraction: Double
 
     var id: String { title }
 }
 
+enum QuotaText {
+    static func percent(_ fraction: Double) -> String {
+        "\(Int((max(0, min(1, fraction)) * 100).rounded()))%"
+    }
+
+    static func reset(_ seconds: Int64?) -> String {
+        guard let seconds, seconds > 0 else { return "" }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return "重置 " + formatter.string(from: Date(timeIntervalSince1970: TimeInterval(seconds)))
+    }
+}
+
 struct RingMeter: View {
     let fraction: Double
-    var lineWidth: CGFloat = 3.5
+    var lineWidth: CGFloat = 4
 
-    private var color: Color {
+    private var ringColor: Color {
         if fraction > 0.5 { return .green }
         if fraction > 0.2 { return .orange }
         return .red
@@ -389,12 +405,29 @@ struct RingMeter: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(color.opacity(0.14), lineWidth: lineWidth)
+                .stroke(Color.primary.opacity(0.09), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: max(0.02, min(1, fraction)))
-                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(ringColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
+    }
+}
+
+struct QuotaRing: View {
+    let fraction: Double
+    var size: CGFloat = 44
+    var lineWidth: CGFloat = 5
+    var fontSize: CGFloat = 11
+
+    var body: some View {
+        ZStack {
+            RingMeter(fraction: fraction, lineWidth: lineWidth)
+            Text(QuotaText.percent(fraction))
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+        }
+        .frame(width: size, height: size)
     }
 }
 
@@ -414,13 +447,13 @@ struct QuotaWidgetView: View {
 
         var result: [QuotaGroupSnapshot] = []
         if let fraction = worstFraction(gemini) {
-            result.append(QuotaGroupSnapshot(title: "Gemini 模型", fraction: fraction))
+            result.append(QuotaGroupSnapshot(title: "Gemini 模型", shortTitle: "Gemini", modelCount: gemini.count, fraction: fraction))
         }
         if let fraction = worstFraction(others) {
-            result.append(QuotaGroupSnapshot(title: "Claude 和 GPT 模型", fraction: fraction))
+            result.append(QuotaGroupSnapshot(title: "Claude 和 GPT 模型", shortTitle: "Claude · GPT", modelCount: others.count, fraction: fraction))
         }
         if result.isEmpty, let fraction = worstFraction(models) {
-            result.append(QuotaGroupSnapshot(title: "剩余额度", fraction: fraction))
+            result.append(QuotaGroupSnapshot(title: "剩余额度", shortTitle: "剩余", modelCount: models.count, fraction: fraction))
         }
         return result
     }
@@ -433,10 +466,8 @@ struct QuotaWidgetView: View {
                 small
             }
         }
-        .padding(.leading, 18)
-        .padding(.top, 14)
-        .padding(.trailing, 14)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 
     private var small: some View {
@@ -451,7 +482,7 @@ struct QuotaWidgetView: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 6)
 
             if groups.isEmpty {
                 Text(statusText)
@@ -460,30 +491,28 @@ struct QuotaWidgetView: View {
                     .lineLimit(3)
                 Spacer(minLength: 0)
             } else {
-                HStack(spacing: 6) {
+                HStack(spacing: 2) {
                     ForEach(Array(groups.prefix(2))) { group in
-                        VStack(spacing: 5) {
-                            RingMeter(fraction: group.fraction, lineWidth: 5)
-                                .frame(width: 46, height: 46)
-                            Text(percentText(group.fraction))
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                .monospacedDigit()
-                            Text(group.title)
-                                .font(.system(size: 8))
+                        VStack(spacing: 6) {
+                            QuotaRing(fraction: group.fraction, size: 46, lineWidth: 5, fontSize: 11)
+                            Text(group.shortTitle)
+                                .font(.system(size: 9))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.7)
+                                .minimumScaleFactor(0.8)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                if !resetText.isEmpty {
-                    Text(resetText)
+
+                Spacer(minLength: 4)
+
+                if !QuotaText.reset(quota?.resetsAtUnixSeconds).isEmpty {
+                    Text(QuotaText.reset(quota?.resetsAtUnixSeconds))
                         .font(.system(size: 8))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
-                Spacer(minLength: 0)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -494,14 +523,14 @@ struct QuotaWidgetView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Antigravity 配额")
                     .font(.system(size: 11, weight: .semibold))
-                Spacer(minLength: 4)
+                Spacer(minLength: 6)
                 Text(headerDetailText)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 0)
 
             if groups.isEmpty {
                 Text(statusText)
@@ -510,9 +539,16 @@ struct QuotaWidgetView: View {
                     .lineLimit(2)
                 Spacer(minLength: 0)
             } else {
-                VStack(spacing: 7) {
-                    ForEach(groups) { group in
-                        groupRow(group)
+                HStack(alignment: .center, spacing: 0) {
+                    ForEach(Array(groups.prefix(2))) { group in
+                        VStack(spacing: 8) {
+                            QuotaRing(fraction: group.fraction, size: 66, lineWidth: 7, fontSize: 15)
+                            Text(group.title)
+                                .font(.system(size: 10.5, weight: .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 Spacer(minLength: 0)
@@ -521,54 +557,12 @@ struct QuotaWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func groupRow(_ group: QuotaGroupSnapshot) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(group.title)
-                    .font(.system(size: 10.5, weight: .medium))
-                    .lineLimit(1)
-                Text("剩余额度")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 6)
-            Text(percentText(group.fraction))
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-            RingMeter(fraction: group.fraction)
-                .frame(width: 26, height: 26)
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-    }
-
     private func worstFraction(_ models: [QuotaModelSnapshot]) -> Double? {
         models.compactMap { $0.remainingFraction }.min()
     }
 
-    private func clamp(_ value: Double) -> Double {
-        max(0, min(1, value))
-    }
-
-    private func percentText(_ fraction: Double) -> String {
-        "\(Int((clamp(fraction) * 100).rounded()))%"
-    }
-
-    private var resetText: String {
-        guard let seconds = quota?.resetsAtUnixSeconds, seconds > 0 else { return "" }
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return "重置 " + formatter.string(from: Date(timeIntervalSince1970: TimeInterval(seconds)))
-    }
-
     private var headerDetailText: String {
-        [quota?.planName, resetText].compactMap { value in
+        [quota?.planName, QuotaText.reset(quota?.resetsAtUnixSeconds)].compactMap { value in
             guard let value, !value.isEmpty else { return nil }
             return value
         }.joined(separator: " · ")
