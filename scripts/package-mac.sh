@@ -9,9 +9,17 @@ widget="$root/macos-widget"
 car_out="$root/artifacts/assetcatalog"
 assets_car=""
 app_icon=""
-if command -v xcrun >/dev/null 2>&1 && [ -d "$root/assets/Assets.xcassets" ]; then
+icon_source=""
+if command -v xcrun >/dev/null 2>&1; then
+  if [ -d "$root/assets/AppIcon.icon" ]; then
+    icon_source="$root/assets/AppIcon.icon"
+  elif [ -d "$root/assets/Assets.xcassets" ]; then
+    icon_source="$root/assets/Assets.xcassets"
+  fi
+fi
+if [ -n "$icon_source" ]; then
   rm -rf "$car_out"; mkdir -p "$car_out"
-  if xcrun actool "$root/assets/Assets.xcassets" --compile "$car_out" --platform macosx --minimum-deployment-target 12.0 --app-icon AppIcon --output-partial-info-plist "$car_out/partial.plist" >/dev/null 2>&1; then
+  if xcrun actool "$icon_source" --compile "$car_out" --platform macosx --minimum-deployment-target 12.0 --app-icon AppIcon --output-partial-info-plist "$car_out/partial.plist" >/dev/null 2>&1; then
     assets_car="$car_out/Assets.car"
     app_icon="$car_out/AppIcon.icns"
     echo "已生成图标资源 Assets.car"
@@ -35,13 +43,19 @@ cat > "$app/Contents/Info.plist" <<'EOF'
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>Buoy</string>
+  <key>CFBundleDisplayName</key><string>Buoy</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIconName</key><string>AppIcon</string>
   <key>CFBundleExecutable</key><string>Buoy</string>
   <key>CFBundleIdentifier</key><string>app.buoy.desktop</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.1.0</string>
-  <key>CFBundleVersion</key><string>2</string>
+  <key>CFBundleVersion</key><string>3</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>CFBundleURLTypes</key>
   <array>
