@@ -487,7 +487,7 @@ struct QuotaWidgetView: View {
                 Text("Antigravity 配额")
                     .font(.system(size: 11, weight: .semibold))
                 Spacer(minLength: 4)
-                Text(creditsText)
+                Text(quota?.planName ?? "")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -549,17 +549,6 @@ struct QuotaWidgetView: View {
 
     private func percentText(_ fraction: Double) -> String {
         "\(Int((clamp(fraction) * 100).rounded()))%"
-    }
-
-    private var creditsText: String {
-        guard let quota else { return "未同步" }
-        if let available = quota.availableCredits {
-            if let monthly = quota.monthlyCredits, monthly > 0 {
-                return "积分 \(Int(available.rounded())) / \(Int(monthly.rounded()))"
-            }
-            return "积分 \(Int(available.rounded()))"
-        }
-        return quota.planName ?? ""
     }
 
     private var statusText: String {

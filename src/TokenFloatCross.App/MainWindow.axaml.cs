@@ -317,14 +317,9 @@ public partial class MainWindow : Window
         }
 
         var quota = await _quotaClient.ReadAsync();
-        var credits = quota.AvailableCredits is null
-            ? null
-            : quota.MonthlyCredits is { } monthly
-                ? $"积分 {quota.AvailableCredits:0} / {monthly:0}"
-                : $"积分 {quota.AvailableCredits:0}";
         QuotaPageSummary.Text = quota.Models.Count == 0
             ? quota.PlanName ?? string.Empty
-            : string.Join(" · ", new[] { $"{quota.Models.Count} 个模型", quota.PlanName, credits }.Where(item => !string.IsNullOrWhiteSpace(item)));
+            : string.Join(" · ", new[] { $"{quota.Models.Count} 个模型", quota.PlanName }.Where(item => !string.IsNullOrWhiteSpace(item)));
         QuotaStatus.Text = quota.Message;
         QuotaList.Children.Clear();
         for (var index = 0; index < quota.Models.Count; index++)
