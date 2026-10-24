@@ -367,14 +367,60 @@ extension UsageSnapshot {
             ]))
 }
 
+struct QuotaGroupSnapshot: Identifiable {
+    let title: String
+    let fraction: Double
+
+    var id: String { title }
+}
+
+struct RingMeter: View {
+    let fraction: Double
+    var lineWidth: CGFloat = 3.5
+
+    private var color: Color {
+        if fraction > 0.5 { return .green }
+        if fraction > 0.2 { return .orange }
+        return .red
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(color.opacity(0.14), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: max(0.02, min(1, fraction)))
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+    }
+}
+
 struct QuotaWidgetView: View {
     let entry: QuotaEntry
     @Environment(\.widgetFamily) private var family
 
     private var quota: QuotaSnapshot? { entry.snapshot.quota }
 
-    private var mediumModels: [QuotaModelSnapshot] {
-        Array((quota?.models ?? []).prefix(3))
+    private var groups: [QuotaGroupSnapshot] {
+        let models = quota?.models ?? []
+        let gemini = models.filter { $0.model.lowercased().hasPrefix("gemini") }
+        let others = models.filter {
+            let name = $0.model.lowercased()
+            return name.hasPrefix("claude") || name.hasPrefix("gpt")
+        }
+
+        var result: [QuotaGroupSnapshot] = []
+        if let fraction = worstFraction(gemini) {
+            result.append(QuotaGroupSnapshot(title: "Gemini 模型", fraction: fraction))
+        }
+        if let fraction = worstFraction(others) {
+            result.append(QuotaGroupSnapshot(title: "Claude 和 GPT 模型", fraction: fraction))
+        }
+        if result.isEmpty, let fraction = worstFraction(models) {
+            result.append(QuotaGroupSnapshot(title: "剩余额度", fraction: fraction))
+        }
+        return result
     }
 
     var body: some View {
@@ -392,37 +438,41 @@ struct QuotaWidgetView: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("ANTIGRAVITY")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .tracking(0.8)
-
-            if let model = quota?.models.first, let fraction = model.remainingFraction {
-                Text(percentText(fraction))
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(modelName(model))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                flexibleBar(fraction)
-                    .padding(.top, 1)
-                Spacer(minLength: 0)
-                Text(creditsText)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("配额")
+                    .font(.system(size: 10, weight: .semibold))
+                Spacer(minLength: 4)
+                Text(quota?.planName ?? "Antigravity")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-            } else {
-                Text("--")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
+            }
+
+            if groups.isEmpty {
                 Text(statusText)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
+                Spacer(minLength: 0)
+            } else {
+                HStack(spacing: 8) {
+                    ForEach(Array(groups.prefix(2))) { group in
+                        VStack(spacing: 4) {
+                            RingMeter(fraction: group.fraction, lineWidth: 5)
+                                .frame(width: 42, height: 42)
+                            Text(percentText(group.fraction))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                            Text(group.title)
+                                .font(.system(size: 8))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
                 Spacer(minLength: 0)
             }
         }
@@ -430,7 +480,7 @@ struct QuotaWidgetView: View {
     }
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Antigravity 配额")
                     .font(.system(size: 11, weight: .semibold))
@@ -441,16 +491,7 @@ struct QuotaWidgetView: View {
                     .lineLimit(1)
             }
 
-            if let plan = quota?.planName, !plan.isEmpty {
-                Text(plan)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 5)
-
-            if mediumModels.isEmpty {
+            if groups.isEmpty {
                 Text(statusText)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
@@ -458,74 +499,52 @@ struct QuotaWidgetView: View {
                 Spacer(minLength: 0)
             } else {
                 VStack(spacing: 6) {
-                    ForEach(Array(mediumModels.enumerated()), id: \.offset) { _, model in
-                        row(model)
+                    ForEach(groups) { group in
+                        groupRow(group)
                     }
                 }
+                Spacer(minLength: 0)
             }
-
-            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func row(_ model: QuotaModelSnapshot) -> some View {
-        HStack(spacing: 8) {
-            Text(modelName(model))
-                .font(.system(size: 10.5, weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if let fraction = model.remainingFraction {
-                bar(fraction, width: 74)
-                Text(percentText(fraction))
+    private func groupRow(_ group: QuotaGroupSnapshot) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.title)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .lineLimit(1)
+                Text("剩余额度")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .frame(width: 30, alignment: .trailing)
-            } else {
-                Text("--")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            Spacer(minLength: 6)
+            Text(percentText(group.fraction))
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+            RingMeter(fraction: group.fraction)
+                .frame(width: 26, height: 26)
         }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        )
     }
 
-    private func bar(_ fraction: Double, width: CGFloat) -> some View {
-        ZStack(alignment: .leading) {
-            Capsule().fill(Color.primary.opacity(0.12))
-            Capsule().fill(quotaColor(fraction)).frame(width: max(3, width * clamp(fraction)))
-        }
-        .frame(width: width, height: 5)
-    }
-
-    private func flexibleBar(_ fraction: Double) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.12))
-                Capsule().fill(quotaColor(fraction)).frame(width: max(3, geo.size.width * clamp(fraction)))
-            }
-        }
-        .frame(height: 5)
+    private func worstFraction(_ models: [QuotaModelSnapshot]) -> Double? {
+        models.compactMap { $0.remainingFraction }.min()
     }
 
     private func clamp(_ value: Double) -> Double {
         max(0, min(1, value))
     }
 
-    private func quotaColor(_ fraction: Double) -> Color {
-        if fraction > 0.5 { return .green }
-        if fraction > 0.2 { return .orange }
-        return .red
-    }
-
     private func percentText(_ fraction: Double) -> String {
         "\(Int((clamp(fraction) * 100).rounded()))%"
-    }
-
-    private func modelName(_ model: QuotaModelSnapshot) -> String {
-        let label = model.label?.trimmingCharacters(in: .whitespaces) ?? ""
-        return label.isEmpty ? model.model : label
     }
 
     private var creditsText: String {

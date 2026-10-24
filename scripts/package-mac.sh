@@ -50,7 +50,7 @@ cat > "$app/Contents/Info.plist" <<'EOF'
   <key>CFBundleIdentifier</key><string>app.buoy.desktop</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.1.0</string>
-  <key>CFBundleVersion</key><string>6</string>
+  <key>CFBundleVersion</key><string>7</string>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
