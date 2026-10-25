@@ -150,7 +150,7 @@
         <Border x:Name="QuotaPage" Classes="card" IsVisible="False" Padding="12,8">
           <Grid RowDefinitions="Auto,Auto,*">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock x:Name="QuotaPageTitle" Text="Antigravity 配额" FontSize="13" FontWeight="SemiBold"
+              <TextBlock x:Name="QuotaPageTitle" Text="配额" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource AppTextBrush}" VerticalAlignment="Center" />
               <TextBlock x:Name="QuotaPageSummary" Grid.Column="1" FontSize="10" VerticalAlignment="Center"
                          Foreground="{DynamicResource AppMutedBrush}" />

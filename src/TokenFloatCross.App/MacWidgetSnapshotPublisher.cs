@@ -181,6 +181,18 @@ internal sealed record WidgetQuotaModel(
     string? Label,
     double? RemainingFraction);
 
+internal sealed record WidgetChatGptWindow(
+    double? UsedPercent,
+    long? WindowSeconds,
+    long? ResetAtUnixSeconds);
+
+internal sealed record WidgetChatGptQuotaSnapshot(
+    string Message,
+    string? PlanName,
+    WidgetChatGptWindow? PrimaryWindow,
+    WidgetChatGptWindow? SecondaryWindow,
+    long UpdatedAtUnixSeconds);
+
 internal sealed record WidgetQuotaSnapshot(
     string Message,
     string? PlanName,
@@ -201,4 +213,7 @@ internal sealed record WidgetUsageSnapshot(
     IReadOnlyList<WidgetModelUsage> TopModels,
     double CostUsd,
     string RangeLabel,
-    WidgetQuotaSnapshot? Quota = null);
+    WidgetQuotaSnapshot? Quota = null,
+    [property: System.Text.Json.Serialization.JsonPropertyName("chatgptQuota")]
+    WidgetChatGptQuotaSnapshot? ChatGptQuota = null,
+    IReadOnlyList<double>? TrendTokens = null);

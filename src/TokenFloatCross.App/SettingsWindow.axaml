@@ -71,6 +71,21 @@
                 </StackPanel>
               </StackPanel>
             </Border>
+
+            <Border Classes="group" Padding="12,10">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="section-title" Text="ChatGPT(Codex 官方登录)" VerticalAlignment="Center" />
+                  <CheckBox x:Name="ChatGptBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" />
+                </Grid>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="需要 Codex 用 ChatGPT 账号登录（codex login）。读取 5 小时和每周用量窗口；自定义 NewAPI 不在此列。" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                  <Button x:Name="TestChatGptButton" Classes="action" Content="测试额度" Click="TestChatGptButton_Click" />
+                  <Button Classes="action" Content="保存并刷新" Click="SaveChatGptButton_Click" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
 
           <StackPanel x:Name="WindowPage" IsVisible="False">

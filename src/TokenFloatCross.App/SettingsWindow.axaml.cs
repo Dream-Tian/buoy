@@ -16,6 +16,7 @@ public partial class SettingsWindow : Window
 {
     private readonly NewApiClient _client = new();
     private readonly AntigravityQuotaClient _quotaClient = new();
+    private readonly ChatGptQuotaClient _chatGptClient = new();
     private readonly MainWindow? _mainWindow;
     private bool _loading = true;
 
@@ -49,6 +50,7 @@ public partial class SettingsWindow : Window
         TokenBox.Text = settings.NewApiAccessToken;
         UserIdBox.Text = settings.NewApiUserId > 0 ? settings.NewApiUserId.ToString() : string.Empty;
         AntigravityBox.IsChecked = settings.AntigravityUsageEnabled;
+        ChatGptBox.IsChecked = settings.ChatGptUsageEnabled;
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
         WidgetModeBox.IsChecked = settings.WidgetMode;
@@ -144,6 +146,33 @@ public partial class SettingsWindow : Window
         StatusText.Text = AntigravityBox.IsChecked == true
             ? "Antigravity 已开启，关闭设置后会刷新"
             : "Antigravity 已关闭，关闭设置后会刷新";
+    }
+
+    private async void TestChatGptButton_Click(object? sender, RoutedEventArgs e)
+    {
+        TestChatGptButton.IsEnabled = false;
+        StatusText.Text = "正在读取 ChatGPT 当前额度…";
+        try
+        {
+            var quota = await _chatGptClient.ReadAsync();
+            StatusText.Text = quota.PlanName is null ? quota.Message : $"{quota.PlanName} · {quota.Message}";
+        }
+        catch (Exception exception)
+        {
+            StatusText.Text = exception.Message;
+        }
+        finally
+        {
+            TestChatGptButton.IsEnabled = true;
+        }
+    }
+
+    private void SaveChatGptButton_Click(object? sender, RoutedEventArgs e)
+    {
+        Save(App.Settings with { ChatGptUsageEnabled = ChatGptBox.IsChecked == true });
+        StatusText.Text = ChatGptBox.IsChecked == true
+            ? "ChatGPT 已开启，关闭设置后会刷新"
+            : "ChatGPT 已关闭，关闭设置后会刷新";
     }
 
     private void IntervalBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)

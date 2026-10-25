@@ -14,6 +14,7 @@ public sealed record CrossAppSettings(
     bool RefreshOnlyWhenVisible = false,
     bool KeepWindowOnTop = false,
     bool AntigravityUsageEnabled = false,
+    bool ChatGptUsageEnabled = false,
     bool AutoUpdateCheck = true,
     string ManifestUrl = "https://github.com/Dream-Tian/TokenFloat/releases/latest/download/update-manifest.json",
     DateTimeOffset? UpdateLastCheckedUtc = null,
@@ -114,6 +115,7 @@ public sealed class CrossSettingsStore
             RefreshOnlyWhenVisible = settings.RefreshOnlyWhenVisible,
             KeepWindowOnTop = settings.KeepWindowOnTop,
             AntigravityUsageEnabled = settings.AntigravityUsageEnabled,
+            ChatGptUsageEnabled = settings.ChatGptUsageEnabled,
             AutoUpdateCheck = settings.AutoUpdateCheck,
             ManifestUrl = settings.ManifestUrl.Trim(),
             UpdateLastCheckedUtc = settings.UpdateLastCheckedUtc,
@@ -268,6 +270,7 @@ public sealed class CrossSettingsStore
         stored.RefreshOnlyWhenVisible,
         stored.KeepWindowOnTop,
         stored.AntigravityUsageEnabled,
+        stored.ChatGptUsageEnabled,
         stored.AutoUpdateCheck,
         string.IsNullOrWhiteSpace(stored.ManifestUrl)
             ? new CrossAppSettings().ManifestUrl
@@ -297,6 +300,8 @@ public sealed class CrossSettingsStore
         public bool KeepWindowOnTop { get; set; }
 
         public bool AntigravityUsageEnabled { get; set; }
+
+        public bool ChatGptUsageEnabled { get; set; }
 
         public bool AutoUpdateCheck { get; set; } = true;
 

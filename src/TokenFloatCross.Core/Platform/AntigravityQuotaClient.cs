@@ -15,7 +15,9 @@ public sealed record AntigravityQuotaSnapshot(
     decimal? AvailableCredits,
     decimal? MonthlyCredits,
     DateTimeOffset? ResetsAt,
-    IReadOnlyList<AntigravityModelQuota> Models);
+    IReadOnlyList<AntigravityModelQuota> Models,
+    decimal? AvailableFlowCredits = null,
+    decimal? MonthlyFlowCredits = null);
 
 /// <summary>
 /// 通过本机 Language Server 读取 Antigravity 配额。Windows 用 netstat，macOS 用 lsof，请求本身相同。
@@ -102,6 +104,14 @@ public sealed class AntigravityQuotaClient
                     continue;
                 }
 
+                // 禁用模型（如 gemini-4-argon-disabled）的 remainingFraction 恒为 0，
+                // 会把小组件里模型组的最低值拉到 0%，这里直接剔除。
+                if (Property(config, "disabled") is { ValueKind: JsonValueKind.True }
+                    || model.EndsWith("-disabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var fraction = Property(quota, "remainingFraction") is null ? 0 : Decimal(quota, "remainingFraction");
                 if (fraction is < 0 or > 1)
                 {
@@ -123,7 +133,15 @@ public sealed class AntigravityQuotaClient
         var monthly = Decimal(planInfo, "monthlyPromptCredits");
         var available = Decimal(planStatus, "availablePromptCredits") ?? Decimal(planInfo, "availablePromptCredits");
         var message = planName is null && models.Count == 0 ? "Antigravity 返回未包含配额信息" : "配额已读取";
-        return new AntigravityQuotaSnapshot(message, planName, available, monthly, resetsAt, models);
+        return new AntigravityQuotaSnapshot(
+            message,
+            planName,
+            available,
+            monthly,
+            resetsAt,
+            models,
+            Decimal(planStatus, "availableFlowCredits"),
+            Decimal(planInfo, "monthlyFlowCredits"));
     }
 
     private static async Task<string> ReadCommandLinesAsync(CancellationToken cancellationToken)

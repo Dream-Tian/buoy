@@ -17,8 +17,10 @@ public partial class MainWindow : Window
 {
     private readonly NewApiClient _client = new();
     private readonly AntigravityQuotaClient _quotaClient = new();
+    private readonly ChatGptQuotaClient _chatGptClient = new();
 
     private WidgetQuotaSnapshot? _widgetQuota;
+    private WidgetChatGptQuotaSnapshot? _widgetChatGpt;
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly DispatcherTimer _widgetSaveTimer = new() { Interval = TimeSpan.FromSeconds(1.2) };
     private bool _widgetApplied;
@@ -210,7 +212,7 @@ public partial class MainWindow : Window
     {
         ApplyWindowSettings();
         RefreshWindowMode();
-        if (App.Settings.IsNewApiConfigured || App.Settings.AntigravityUsageEnabled)
+        if (App.Settings.IsNewApiConfigured || App.Settings.AntigravityUsageEnabled || App.Settings.ChatGptUsageEnabled)
         {
             await RefreshAsync();
         }
@@ -306,44 +308,165 @@ public partial class MainWindow : Window
 
     private async Task ReadQuotaAsync()
     {
-        if (!App.Settings.AntigravityUsageEnabled)
-        {
-            QuotaPageSummary.Text = string.Empty;
-            QuotaStatus.Text = "在设置中启用本地 Antigravity，即可读取当前配额。";
-            QuotaList.Children.Clear();
-            _widgetQuota = null;
-            PublishWidgetSnapshot();
-            return;
-        }
+        var antigravity = await ReadAntigravityQuotaAsync();
+        var chatGpt = await ReadChatGptQuotaAsync();
 
-        var quota = await _quotaClient.ReadAsync();
-        var resetsAt = quota.ResetsAt is { } reset ? $"重置 {reset.LocalDateTime:HH:mm}" : null;
-        QuotaPageSummary.Text = quota.Models.Count == 0
-            ? quota.PlanName ?? string.Empty
-            : string.Join(" · ", new[] { $"{quota.Models.Count} 个模型", quota.PlanName, resetsAt }.Where(item => !string.IsNullOrWhiteSpace(item)));
-        QuotaStatus.Text = quota.Message;
         QuotaList.Children.Clear();
-        for (var index = 0; index < quota.Models.Count; index++)
+        if (antigravity is { } quota)
         {
-            QuotaList.Children.Add(CreateQuotaRow(index + 1, quota.Models[index]));
+            for (var index = 0; index < quota.Models.Count; index++)
+            {
+                QuotaList.Children.Add(CreateQuotaRow(index + 1, quota.Models[index]));
+            }
+
+            if (quota.Models.Count == 0)
+            {
+                QuotaList.Children.Add(new TextBlock
+                {
+                    Text = "还没有读到模型配额",
+                    FontSize = 11,
+                    Foreground = Brush("AppMutedBrush"),
+                    Margin = new Thickness(0, 12, 0, 5)
+                });
+            }
+
+            // 模型环之外的两个月度额度池（接口只有月度口径，没有周限）。
+            var creditParts = new List<string>();
+            if (quota.AvailableCredits is { } prompt && quota.MonthlyCredits is { } monthlyPrompt)
+            {
+                creditParts.Add($"Prompt 额度 {prompt:0}/{monthlyPrompt:0}");
+            }
+
+            if (quota.AvailableFlowCredits is { } flow && quota.MonthlyFlowCredits is { } monthlyFlow)
+            {
+                creditParts.Add($"Flow 额度 {flow:0}/{monthlyFlow:0}");
+            }
+
+            if (creditParts.Count > 0)
+            {
+                QuotaList.Children.Add(new TextBlock
+                {
+                    Text = string.Join(" · ", creditParts),
+                    FontSize = 10,
+                    Foreground = Brush("AppMutedBrush"),
+                    Margin = new Thickness(0, 8, 0, 2)
+                });
+            }
         }
 
-        if (quota.Models.Count == 0)
+        if (chatGpt is { } chatQuota)
         {
             QuotaList.Children.Add(new TextBlock
             {
-                Text = "还没有读到模型配额",
+                Text = "ChatGPT",
+                FontSize = 11,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = Brush("AppTextBrush"),
+                Margin = new Thickness(0, antigravity is null ? 0 : 14, 0, 2)
+            });
+            if (chatQuota.Primary is null && chatQuota.Secondary is null)
+            {
+                QuotaList.Children.Add(new TextBlock
+                {
+                    Text = chatQuota.Message,
+                    FontSize = 11,
+                    Foreground = Brush("AppMutedBrush"),
+                    Margin = new Thickness(0, 4, 0, 5),
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
+            else
+            {
+                foreach (var window in new[] { chatQuota.Primary, chatQuota.Secondary })
+                {
+                    if (window is not null)
+                    {
+                        AddChatGptWindowRow(WindowLabel(window.WindowSeconds), window);
+                    }
+                }
+            }
+        }
+
+        if (antigravity is null && chatGpt is null)
+        {
+            QuotaList.Children.Add(new TextBlock
+            {
+                Text = "在设置里启用本地 Antigravity 或 ChatGPT(Codex 官方登录),即可读取当前配额。",
                 FontSize = 11,
                 Foreground = Brush("AppMutedBrush"),
-                Margin = new Thickness(0, 12, 0, 5)
+                Margin = new Thickness(0, 12, 0, 5),
+                TextWrapping = TextWrapping.Wrap
             });
         }
 
+        QuotaPageSummary.Text = JoinSummary(antigravity, chatGpt);
+        QuotaStatus.Text = antigravity?.Message ?? chatGpt?.Message ?? "剩余比例";
         if (_events.Count == 0)
         {
-            SetStatus(quota.Message);
+            SetStatus(QuotaStatus.Text);
         }
 
+        PublishWidgetSnapshot();
+    }
+
+    private static string JoinSummary(AntigravityQuotaSnapshot? antigravity, ChatGptQuotaSnapshot? chatGpt)
+    {
+        var parts = new List<string>();
+        if (antigravity is { } quota)
+        {
+            var resetsAt = quota.ResetsAt is { } reset ? $"重置 {reset.LocalDateTime:HH:mm}" : null;
+            if (quota.Models.Count > 0)
+            {
+                parts.Add($"{quota.Models.Count} 个模型");
+            }
+
+            if (quota.PlanName is { } plan)
+            {
+                parts.Add(plan);
+            }
+
+            if (resetsAt is { } value)
+            {
+                parts.Add(value);
+            }
+        }
+
+        if (chatGpt is { } chat && (chat.Primary is not null || chat.Secondary is not null))
+        {
+            if (chat.PlanName is { } plan)
+            {
+                parts.Add(plan);
+            }
+
+            foreach (var window in new[] { chat.Primary, chat.Secondary })
+            {
+                if (window is not { } value)
+                {
+                    continue;
+                }
+
+                var reset = FormatChatGptReset(value);
+                parts.Add($"{WindowLabel(value.WindowSeconds)}剩余 {RemainingPercent(value.UsedPercent):0}%");
+                if (!string.IsNullOrEmpty(reset))
+                {
+                    parts.Add(reset);
+                }
+            }
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>返回 null 表示没有启用 Antigravity 配额读取。</summary>
+    private async Task<AntigravityQuotaSnapshot?> ReadAntigravityQuotaAsync()
+    {
+        if (!App.Settings.AntigravityUsageEnabled)
+        {
+            _widgetQuota = null;
+            return null;
+        }
+
+        var quota = await _quotaClient.ReadAsync();
         _widgetQuota = new WidgetQuotaSnapshot(
             quota.Message,
             quota.PlanName,
@@ -354,8 +477,90 @@ public partial class MainWindow : Window
             quota.Models
                 .Select(item => new WidgetQuotaModel(item.Model, item.Label, (double?)item.RemainingFraction))
                 .ToArray());
-        PublishWidgetSnapshot();
+        return quota;
     }
+
+    /// <summary>返回 null 表示没有启用 ChatGPT 配额读取。</summary>
+    private async Task<ChatGptQuotaSnapshot?> ReadChatGptQuotaAsync()
+    {
+        if (!App.Settings.ChatGptUsageEnabled)
+        {
+            _widgetChatGpt = null;
+            return null;
+        }
+
+        var chatQuota = await _chatGptClient.ReadAsync();
+        _widgetChatGpt = new WidgetChatGptQuotaSnapshot(
+            chatQuota.Message,
+            chatQuota.PlanName,
+            ToWidgetWindow(chatQuota.Primary),
+            ToWidgetWindow(chatQuota.Secondary),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        return chatQuota;
+    }
+
+    private void AddChatGptWindowRow(string title, ChatGptQuotaWindow window)
+    {
+        var remaining = RemainingPercent(window.UsedPercent);
+        var reset = FormatChatGptReset(window);
+        var text = $"剩余 {remaining:0}%{(string.IsNullOrEmpty(reset) ? "" : $" · {reset}")}";
+        var grid = new Grid { Margin = new Thickness(0, 1) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        grid.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Brush("AppTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var value = new TextBlock
+        {
+            Text = text,
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(0, 0, 4, 0),
+            Foreground = Brush(remaining <= 20 ? "AppOrangeBrush" : "AppAccentBrush"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(value, 1);
+        grid.Children.Add(value);
+        QuotaList.Children.Add(new Border
+        {
+            Padding = new Thickness(4, 3),
+            CornerRadius = new CornerRadius(8),
+            Background = Brushes.Transparent,
+            Child = grid
+        });
+    }
+
+    private static double RemainingPercent(double? usedPercent) =>
+        usedPercent is { } used ? Math.Clamp(100 - used, 0, 100) : 0;
+
+    private static string WindowLabel(long? windowSeconds) => windowSeconds switch
+    {
+        >= 2_160_000 => "30 天窗口",
+        >= 172_800 => "每周窗口",
+        >= 3_600 => "5 小时窗口",
+        _ => "当前窗口"
+    };
+
+    private static string FormatChatGptReset(ChatGptQuotaWindow window)
+    {
+        if (window.ResetAtUnixSeconds is not { } seconds || seconds <= 0)
+        {
+            return string.Empty;
+        }
+
+        var reset = DateTimeOffset.FromUnixTimeSeconds(seconds).LocalDateTime;
+        var format = (window.WindowSeconds ?? 0) >= 172800 ? "MM/dd HH:mm" : "HH:mm";
+        return $"重置 {reset.ToString(format)}";
+    }
+
+    private static WidgetChatGptWindow? ToWidgetWindow(ChatGptQuotaWindow? window) => window is null
+        ? null
+        : new WidgetChatGptWindow(window.UsedPercent, window.WindowSeconds, window.ResetAtUnixSeconds);
 
     /// <summary>
     /// 配额行与模型用量同一套排法：左侧序号和名称，右侧剩余比例。
@@ -502,6 +707,12 @@ public partial class MainWindow : Window
             .Where(item => item.Timestamp.LocalDateTime >= start)
             .Sum(item => item.Quota);
 
+        // 今日每小时 Token,给系统小组件的 medium 尺寸画走势。
+        var todayTrend = UsageMath.TrendFor(_events, UsagePeriod.Today)
+            .Points
+            .Select(point => (double)point.Tokens)
+            .ToArray();
+
         MacWidgetSnapshotPublisher.Publish(new WidgetUsageSnapshot(
             rates.TotalTokens,
             rates.RequestCount,
@@ -513,7 +724,9 @@ public partial class MainWindow : Window
             topModels,
             (double)(quota / QuotaPerUnit),
             label,
-            _widgetQuota));
+            _widgetQuota,
+            _widgetChatGpt,
+            todayTrend));
     }
 
     private static (DateTime Start, string Label) ResolveWidgetRange(string key)

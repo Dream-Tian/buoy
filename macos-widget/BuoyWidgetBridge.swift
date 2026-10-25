@@ -5,5 +5,7 @@ import WidgetKit
 /// 参数保留是为了不改 C# 侧的 P/Invoke 签名，快照本身走 localhost。
 @_cdecl("BuoyWidgetPublish")
 public func buoyWidgetPublish(_ rawJSON: UnsafePointer<CChar>?) {
-    WidgetCenter.shared.reloadTimelines(ofKind: "BuoyUsageWidget")
+    // 用量、Antigravity 配额、ChatGPT 配额三个组件都要刷新，
+    // 只刷一个会让配额组件停在旧值（时间线预算不够时系统不会主动重取）。
+    WidgetCenter.shared.reloadAllTimelines()
 }
