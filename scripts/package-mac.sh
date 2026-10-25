@@ -31,7 +31,7 @@ if [ -z "$app_icon" ]; then
   app_icon="$root/assets/Buoy.icns"
 fi
 
-dotnet publish "$root/src/TokenFloatCross.App/TokenFloatCross.App.csproj" \
+dotnet publish "$root/src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj" \
   -c Release -r osx-arm64 --self-contained true -o "$publish"
 
 rm -rf "$app"

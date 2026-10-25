@@ -75,7 +75,7 @@ CODESIGN_IDENTITY="Apple Development: 你的邮箱 (TEAMID)" scripts/package-mac
 需要 .NET 8 SDK。
 
 ```sh
-dotnet run --project src/TokenFloatCross.App/TokenFloatCross.App.csproj
+dotnet run --project src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj
 ```
 
 直接 `dotnet run` 起的是普通窗口：桌面卡片模式、Dock 隐藏、菜单栏都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
@@ -85,7 +85,7 @@ dotnet run --project src/TokenFloatCross.App/TokenFloatCross.App.csproj
 Windows：
 
 ```powershell
-dotnet publish src\TokenFloatCross.App\TokenFloatCross.App.csproj -c Release -r win-x64 --self-contained true
+dotnet publish src\TokenFloatCross.Desktop\TokenFloatCross.Desktop.csproj -c Release -r win-x64 --self-contained true
 ```
 
 macOS（在 macOS 上执行）：
@@ -98,7 +98,7 @@ scripts/package-mac.sh
 
 ## 发版
 
-1. 先确认版本号一致：`scripts/package-mac.sh` 里 `CFBundleShortVersionString` 是应用版本，建议同时在 `TokenFloatCross.App.csproj` 里补 `<Version>`，否则应用内「检查更新」比对的是默认的 1.0.0.0。
+1. 先确认版本号一致：`scripts/package-mac.sh` 里 `CFBundleShortVersionString` 是应用版本，建议同时在 `TokenFloatCross.Desktop.csproj` 里补 `<Version>`，否则应用内「检查更新」比对的是默认的 1.0.0.0。
 2. 打标签并推送：`git tag v1.1.0 && git push origin v1.1.0`。
 3. 在 GitHub 的 Releases 里基于该标签新建发布，附上 `artifacts/Buoy.dmg`，说明本次改动用 `git log <上个标签>..HEAD --oneline` 整理。
 
