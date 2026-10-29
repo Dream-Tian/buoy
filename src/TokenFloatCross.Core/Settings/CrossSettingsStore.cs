@@ -23,7 +23,8 @@ public sealed record CrossAppSettings(
     int? WidgetX = null,
     int? WidgetY = null,
     string FontStyle = "system",
-    string WidgetRange = "today")
+    string WidgetRange = "today",
+    IReadOnlyList<string>? ModelFilter = null)
 {
     public bool IsNewApiConfigured =>
         !string.IsNullOrWhiteSpace(NewApiBaseUrl) &&
@@ -31,6 +32,13 @@ public sealed record CrossAppSettings(
 
     public int NormalizedRefreshSeconds =>
         RefreshIntervalSeconds is 10 or 30 or 60 or 300 ? RefreshIntervalSeconds : 30;
+
+    /// <summary>
+    /// 只统计这些模型；空列表表示统计全部模型。
+    /// </summary>
+    public IReadOnlyList<string> SelectedModels => ModelFilter ?? [];
+
+    public bool HasModelFilter => ModelFilter is { Count: > 0 };
 }
 
 /// <summary>
@@ -124,7 +132,8 @@ public sealed class CrossSettingsStore
             WidgetX = settings.WidgetX,
             WidgetY = settings.WidgetY,
             FontStyle = NormalizeFont(settings.FontStyle),
-            WidgetRange = NormalizeRange(settings.WidgetRange)
+            WidgetRange = NormalizeRange(settings.WidgetRange),
+            ModelFilter = NormalizeModels(settings.ModelFilter)?.ToArray()
         };
         File.WriteAllText(_path, JsonSerializer.Serialize(stored, new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -281,7 +290,8 @@ public sealed class CrossSettingsStore
         stored.WidgetX,
         stored.WidgetY,
         NormalizeFont(stored.FontStyle),
-        NormalizeRange(stored.WidgetRange));
+        NormalizeRange(stored.WidgetRange),
+        NormalizeModels(stored.ModelFilter));
 
     private sealed class StoredSettings
     {
@@ -320,10 +330,28 @@ public sealed class CrossSettingsStore
         public string? FontStyle { get; set; }
 
         public string? WidgetRange { get; set; }
+
+        public string[]? ModelFilter { get; set; }
     }
 
     public static string NormalizeFont(string? key) => key is "rounded" or "song" or "kai" or "mono" ? key : "system";
 
     public static string NormalizeRange(string? key) =>
         key is "week" or "month" or "24h" or "7d" or "30d" ? key : "today";
+
+    /// <summary>去空白、去重；空集合按「不筛选」处理，存成 null。</summary>
+    public static IReadOnlyList<string>? NormalizeModels(IReadOnlyList<string>? models)
+    {
+        if (models is null)
+        {
+            return null;
+        }
+
+        var cleaned = models
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return cleaned.Length == 0 ? null : cleaned;
+    }
 }

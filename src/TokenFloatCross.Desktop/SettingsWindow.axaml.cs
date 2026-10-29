@@ -4,11 +4,15 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using Buoy.NewApi;
 using Buoy.Platform;
 using Buoy.Settings;
+using Buoy.Usage;
 
 namespace Buoy;
 
@@ -60,6 +64,7 @@ public partial class SettingsWindow : Window
         SelectInterval(settings.NormalizedRefreshSeconds);
         SelectFont(settings.FontStyle);
         SelectWidgetRange(CrossSettingsStore.NormalizeRange(settings.WidgetRange));
+        UpdateFilterSummary();
         UpdateThemeButtons(settings.UseDarkTheme);
         Topmost = settings.KeepWindowOnTop;
         RefreshDataPage();
@@ -73,12 +78,20 @@ public partial class SettingsWindow : Window
         var tag = sender is Button { Tag: string value } ? value : "Source";
         SourcePage.IsVisible = tag == "Source";
         WindowPage.IsVisible = tag == "Window";
+        FilterPage.IsVisible = tag == "Filter";
         DataPage.IsVisible = tag == "Data";
         UpdatePage.IsVisible = tag == "Update";
         SetActive(SourceTab, tag == "Source");
         SetActive(WindowTab, tag == "Window");
+        SetActive(FilterTab, tag == "Filter");
         SetActive(DataTab, tag == "Data");
         SetActive(UpdateTab, tag == "Update");
+        if (tag == "Filter")
+        {
+            // 每次进页面都按主窗口当前时段重建，避免时间段切了列表还是旧的。
+            BuildFilterList();
+        }
+
         if (tag == "Data")
         {
             RefreshDataPage();
@@ -248,8 +261,8 @@ public partial class SettingsWindow : Window
         _mainWindow?.RefreshWindowMode();
 
         StatusText.Text = enabled
-            ? "已进入桌面小组件。拖动会记住位置；重启后不再显示 Dock 图标。"
-            : "已切回标准窗口。Dock 图标重启后恢复。";
+            ? "已进入桌面小组件。拖动会记住位置。"
+            : "已切回标准窗口。";
     }
 
     private void OpenFolderButton_Click(object? sender, RoutedEventArgs e)
@@ -320,6 +333,166 @@ public partial class SettingsWindow : Window
             CheckUpdateButton.IsEnabled = true;
         }
     }
+
+    /// <summary>
+    /// 列表只列主窗口当前时段用过的模型；已勾选但当前时段没用过的也列出来（标注一下），
+    /// 否则换个时段就取消不掉了。
+    /// </summary>
+    private void BuildFilterList()
+    {
+        FilterModelList.Children.Clear();
+        var summaries = _mainWindow?.ModelsForSelectedPeriod() ?? Array.Empty<ModelUsageSummary>();
+        var period = _mainWindow?.SelectedPeriodLabel ?? "今日";
+        var selected = App.Settings.SelectedModels;
+        var selectedSet = new HashSet<string>(selected, StringComparer.Ordinal);
+
+        FilterScopeText.Text = summaries.Count == 0
+            ? $"主窗口当前时段（{period}）还没有模型记录，先在主窗口刷新一次。未勾选表示统计全部模型。"
+            : $"列表来自主窗口当前时段（{period}）用过的模型，可单选也可多选。未勾选表示统计全部模型。";
+
+        foreach (var item in summaries)
+        {
+            FilterModelList.Children.Add(CreateFilterRow(
+                item.Model,
+                $"{FormatTokens(item.TotalTokens)} token",
+                selectedSet.Contains(item.Model)));
+        }
+
+        foreach (var model in selected.Where(model => !summaries.Any(item => string.Equals(item.Model, model, StringComparison.Ordinal))))
+        {
+            FilterModelList.Children.Add(CreateFilterRow(model, "当前时段无记录", true));
+        }
+
+        if (FilterModelList.Children.Count == 0)
+        {
+            FilterModelList.Children.Add(new TextBlock
+            {
+                Text = "没有可筛选的模型",
+                FontSize = 11,
+                Foreground = Brush("AppMutedBrush"),
+                Margin = new Thickness(0, 10, 0, 8)
+            });
+        }
+
+        UpdateFilterSummary();
+    }
+
+    private Control CreateFilterRow(string model, string detail, bool isChecked)
+    {
+        // CheckBox 的内容区不会拉伸，所以右侧的数量单独放一列，才能对齐到行尾。
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 1) };
+        var box = new CheckBox
+        {
+            Tag = model,
+            IsChecked = isChecked,
+            Content = new TextBlock
+            {
+                Text = model,
+                FontSize = 12,
+                MaxWidth = 246,
+                Margin = new Thickness(6, 0, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = Brush("AppTextBrush"),
+                VerticalAlignment = VerticalAlignment.Center
+            },
+            FontSize = 12,
+            Height = 26,
+            MinHeight = 26,
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Cursor = new Cursor(StandardCursorType.Hand)
+        };
+        box.Click += FilterRow_Click;
+        grid.Children.Add(box);
+
+        var detailText = new TextBlock
+        {
+            Text = detail,
+            FontSize = 10,
+            Foreground = Brush("AppMutedBrush"),
+            Margin = new Thickness(8, 0, 2, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(detailText, 1);
+        grid.Children.Add(detailText);
+        return grid;
+    }
+
+    private void FilterRow_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        SaveFilterSelection();
+    }
+
+    private void FilterSelectAll_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var box in FilterBoxes())
+        {
+            box.IsChecked = true;
+        }
+
+        SaveFilterSelection();
+    }
+
+    private void FilterClear_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var box in FilterBoxes())
+        {
+            box.IsChecked = false;
+        }
+
+        SaveFilterSelection();
+    }
+
+    private void FilterRefresh_Click(object? sender, RoutedEventArgs e)
+    {
+        BuildFilterList();
+        StatusText.Text = "筛选列表已按主窗口当前时段更新";
+    }
+
+    /// <summary>
+    /// 勾选状态就是筛选结果：空集合表示不筛选。改完立刻让主窗口重算，不用等下一次刷新。
+    /// </summary>
+    private void SaveFilterSelection()
+    {
+        var models = FilterBoxes()
+            .Where(box => box.IsChecked == true && box.Tag is string)
+            .Select(box => (string)box.Tag!)
+            .ToArray();
+        Save(App.Settings with { ModelFilter = models });
+        _mainWindow?.ApplyModelFilterAndRender();
+        UpdateFilterSummary();
+        StatusText.Text = models.Length == 0
+            ? "已取消筛选，统计全部模型"
+            : $"已筛选 {models.Length} 个模型，其余不计入统计";
+    }
+
+    private IEnumerable<CheckBox> FilterBoxes() => FilterModelList.Children
+        .OfType<Grid>()
+        .Select(grid => grid.Children.OfType<CheckBox>().FirstOrDefault())
+        .OfType<CheckBox>();
+
+    private void UpdateFilterSummary()
+    {
+        var selected = App.Settings.SelectedModels.Count;
+        FilterSummaryText.Text = selected == 0
+            ? "未勾选 · 统计全部模型"
+            : $"已选 {selected} 个模型 · 其余不计入统计";
+    }
+
+    private IBrush Brush(string key) => (IBrush)this.FindResource(key)!;
+
+    private static string FormatTokens(long value) => value switch
+    {
+        >= 100_000_000 => $"{value / 100_000_000d:0.##}亿",
+        >= 10_000 => $"{value / 10_000d:0.##}万",
+        _ => value.ToString("N0")
+    };
 
     private void RefreshDataPage()
     {

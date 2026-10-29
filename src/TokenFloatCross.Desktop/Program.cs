@@ -1,5 +1,4 @@
 using Avalonia;
-using Buoy.Settings;
 
 namespace Buoy;
 
@@ -18,9 +17,8 @@ internal static class Program
 
         if (OperatingSystem.IsMacOS())
         {
-            // 小组件模式下不占 Dock，只留菜单栏图标。
-            var widgetMode = new CrossSettingsStore().Load().WidgetMode;
-            builder = builder.With(new MacOSPlatformOptions { ShowInDock = !widgetMode });
+            // macOS 上只做菜单栏常驻：不占 Dock，也不出现在 Cmd+Tab 列表里。
+            builder = builder.With(new MacOSPlatformOptions { ShowInDock = false });
         }
 
         return builder;

@@ -37,6 +37,9 @@ dotnet publish "$root/src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/PlugIns" "$app/Contents/Resources"
 cp -R "$publish"/. "$app/Contents/MacOS/"
+# 不要在这里写 LSUIElement：应用一旦标成 UIElement，ExtensionKit 会把它的
+# WidgetKit 扩展当成 “restricted or unknown” 直接忽略，小组件库和桌面小部件
+# 都会消失。Dock 隐藏交给 Program.cs 里的 MacOSPlatformOptions.ShowInDock = false。
 cat > "$app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

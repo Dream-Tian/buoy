@@ -150,6 +150,16 @@ public partial class App : Application
         desktop.MainWindow = window;
         window.Show();
         window.WindowState = WindowState.Normal;
+
+        if (OperatingSystem.IsMacOS() && !Settings.KeepWindowOnTop)
+        {
+            // 默认贴在桌面层：从菜单栏点「显示」不会盖住正在用的窗口，也不抢焦点。
+            MacWindowLevel.SetDesktopLevel(window, true);
+            return;
+        }
+
+        // 勾了「置于顶层」，或者其他平台，正常抬到最前。
+        MacWindowLevel.ActivateApplication();
         window.Activate();
     }
 
@@ -169,11 +179,13 @@ public partial class App : Application
         {
             if (existing.IsVisible)
             {
+                MacWindowLevel.ActivateApplication();
                 existing.Activate();
             }
             else
             {
                 existing.Show();
+                MacWindowLevel.ActivateApplication();
                 existing.Activate();
             }
 
@@ -192,6 +204,7 @@ public partial class App : Application
             }
         };
         window.Show();
+        MacWindowLevel.ActivateApplication();
         window.Activate();
     }
 

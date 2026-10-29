@@ -2,7 +2,7 @@
 
 用量浮窗。用 Avalonia 同时编译 Windows 和 macOS，统计和 NewAPI 请求放在不依赖系统的核心库里。
 
-关闭主窗口后，macOS 留在菜单栏，Windows 留在托盘。NewAPI 用量和本机 Antigravity 配额都会读取。macOS 上的 Token 优先写入登录钥匙串。
+关闭主窗口后，macOS 留在菜单栏，Windows 留在托盘。macOS 版只做菜单栏常驻，不显示 Dock 图标，也不会出现在 Cmd+Tab 列表里。NewAPI 用量和本机 Antigravity 配额都会读取。macOS 上的 Token 优先写入登录钥匙串。
 
 原来的 Windows 版 TokenFloat 配置会在第一次启动时导入。Antigravity 会话里的逐条 Token 明细仍以那一版为准。
 
@@ -11,9 +11,10 @@
 - **NewAPI 用量**：今日 / 本周 / 本月切换，总 Token、请求数、RPM、TPM 一起汇总。
 - **消费趋势**：按小时画图，可切 Token / 次数 / 消耗三种口径，柱状或面积两种画法。
 - **模型用量**：模型排行，含 Token、请求、消耗以及输入/输出占比。
+- **模型筛选**：设置「筛选」页只统计指定模型，可单选可多选。列表来自主窗口当前时段用过的模型，不勾选表示统计全部；总览、趋势、模型页、菜单栏提示和桌面小组件一起生效。
 - **Antigravity 配额**：读取本机 IDE 登录态里的套餐名、Prompt 额度和各模型剩余比例；IDE 没在运行或没登录时读不到。
 - **桌面小组件**：macOS 上有两种 —— 应用内可拖动的桌面卡片（macOS 12+），以及随 `.app` 打包的 WidgetKit 系统小组件（macOS 14+）。
-- **常驻菜单栏 / 托盘**：关窗口不退出，点图标回到主窗口；菜单里有显示、设置、退出。
+- **常驻菜单栏 / 托盘**：macOS 只占菜单栏，不占 Dock；关窗口不退出，点图标回到主窗口，菜单里有显示、设置、退出。菜单的「显示」把主窗口贴回桌面层，不抢当前应用的焦点、也不压住其他窗口；只有勾了「置于顶层」才会浮到最前。
 - **外观**：浅色 / 深色、系统默认 / 圆体 / 宋体 / 楷体 / 等宽五套字体、窗口置顶。
 - **其他**：开机自启、刷新间隔 10 / 30 / 60 / 300 秒、仅窗口可见时刷新、手动检查更新清单。
 
@@ -41,8 +42,8 @@ xattr -dr com.apple.quarantine /Applications/Buoy.app
 
 - 主窗口顶部四个页签：总览、趋势、模型、配额；每页都能切今日 / 本周 / 本月。
 - 标题栏右侧两个按钮：切成桌面卡片、关闭窗口（关闭后仍留在菜单栏）。
-- 页签右边一行是刷新按钮和 ⚙ 设置。设置是独立窗口，分来源、窗口、数据、更新四页；「窗口」页管置顶、桌面小组件模式、开机自启、外观和字体。
-- 「桌面小组件」把主窗口缩成一张卡片贴到桌面层，不挡其他窗口，拖动后的位置会记住。这个模式同时会隐藏 Dock 图标，下次启动生效。
+- 页签右边一行是刷新按钮和 ⚙ 设置。设置是独立窗口，分来源、窗口、筛选、数据、更新五页；「窗口」页管置顶、桌面小组件模式、开机自启、外观和字体；「筛选」页决定统计哪些模型，改完立刻生效，不用等下次刷新。
+- 「桌面小组件」把主窗口缩成一张卡片贴到桌面层，不挡其他窗口，拖动后的位置会记住。
 - 「系统小组件范围」决定 WidgetKit 小组件看的是今日、本周、本月，还是最近 24 小时 / 7 天 / 30 天。
 
 ## macOS 桌面小组件
@@ -78,7 +79,9 @@ CODESIGN_IDENTITY="Apple Development: 你的邮箱 (TEAMID)" scripts/package-mac
 dotnet run --project src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj
 ```
 
-直接 `dotnet run` 起的是普通窗口：桌面卡片模式、Dock 隐藏、菜单栏都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
+`dotnet run` 起的是普通窗口：菜单栏常驻（不占 Dock）、桌面卡片模式都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
+
+Dock 隐藏由 `Program.cs` 里的 `MacOSPlatformOptions.ShowInDock = false` 完成，所以 `.app` 和 `dotnet run` 表现一致。**不要**在 `Info.plist` 里加 `LSUIElement`：声明成 UIElement 后 ExtensionKit 会把小组件扩展当成 “restricted or unknown” 忽略掉，小组件库和桌面小部件会整块消失。代价是打包版在启动瞬间可能闪过一下 Dock 图标，窗口起来后不占 Dock、也不进 Cmd+Tab。
 
 ## 打包
 

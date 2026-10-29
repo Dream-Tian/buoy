@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private const double TrendPlotBottom = 28;
 
     private UsagePeriod _period = UsagePeriod.Today;
+    private IReadOnlyList<TokenUsageEvent> _allEvents = [];
     private IReadOnlyList<TokenUsageEvent> _events = [];
     private IReadOnlyList<UsageTrendPoint> _trendPoints = [];
     private double _trendMaximum;
@@ -274,13 +275,14 @@ public partial class MainWindow : Window
         {
             if (settings.IsNewApiConfigured)
             {
-                _events = await _client.ReadRecentAsync(new NewApiSettings(
+                _allEvents = await _client.ReadRecentAsync(new NewApiSettings(
                     settings.NewApiBaseUrl,
                     settings.NewApiAccessToken,
                     settings.NewApiUserId));
+                ApplyModelFilter();
                 _lastSuccessfulRefreshUtc = DateTimeOffset.UtcNow;
                 _lastRefreshHadError = false;
-                SetStatus($"已读取 {_events.Count} 条小时汇总");
+                SetStatus(DescribeEventCount());
                 Render();
             }
             else
@@ -304,6 +306,51 @@ public partial class MainWindow : Window
         }
 
         await ReadQuotaAsync();
+    }
+
+    /// <summary>设置页里列表展示的时间段标题。</summary>
+    public string SelectedPeriodLabel => PeriodLabel(_period);
+
+    /// <summary>
+    /// 当前时段用过的模型，供设置页的筛选列表使用。这里读的是筛选前的全量数据，
+    /// 否则勾选一个模型后其他模型就从列表里消失了。
+    /// </summary>
+    public IReadOnlyList<ModelUsageSummary> ModelsForSelectedPeriod() => UsageMath.ModelsFor(_allEvents, _period);
+
+    /// <summary>设置页改动模型筛选后立即重算，不用等下一次刷新。</summary>
+    public void ApplyModelFilterAndRender()
+    {
+        ApplyModelFilter();
+        Render();
+        RenderWidget();
+        if (_allEvents.Count > 0)
+        {
+            SetStatus(DescribeEventCount());
+        }
+    }
+
+    /// <summary>
+    /// 统计只走筛选后的 _events；全量数据留在 _allEvents 里给筛选列表和重新筛选用。
+    /// </summary>
+    private void ApplyModelFilter()
+    {
+        var selected = App.Settings.SelectedModels;
+        if (selected.Count == 0)
+        {
+            _events = _allEvents;
+            return;
+        }
+
+        var allowed = new HashSet<string>(selected, StringComparer.Ordinal);
+        _events = _allEvents.Where(item => allowed.Contains(item.NormalizedModel)).ToArray();
+    }
+
+    private string DescribeEventCount()
+    {
+        var text = $"已读取 {_events.Count} 条小时汇总";
+        return App.Settings.HasModelFilter
+            ? $"{text} · 已筛选 {App.Settings.SelectedModels.Count} 个模型"
+            : text;
     }
 
     private async Task ReadQuotaAsync()
@@ -644,6 +691,9 @@ public partial class MainWindow : Window
         RequestsText.Text = rates.RequestCount.ToString("N0");
         RpmText.Text = FormatRate(rates.AverageRpm);
         TpmText.Text = FormatRate(rates.AverageTpm);
+        OverviewScopeText.Text = App.Settings.HasModelFilter
+            ? $"所选时段 · 筛选 {App.Settings.SelectedModels.Count} 个模型"
+            : "所选时段";
         var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
         var todayQuota = _events.Where(item => item.Timestamp.LocalDateTime >= DateTime.Today).Sum(item => item.Quota);
         App.UpdateTrayTip($"今日 {FormatCount(today.TotalTokens)} · {today.RequestCount}次 · 消耗 {FormatUsd(todayQuota / QuotaPerUnit)}");
@@ -992,7 +1042,9 @@ public partial class MainWindow : Window
         var quotaSum = models.Sum(item => item.Quota);
         var hasUnpriced = models.Any(item => item.Quota <= 0 && (item.Requests > 0 || item.TotalTokens > 0));
         ModelPageTitle.Text = $"模型用量 · {PeriodLabel(_period)}";
-        ModelPageSummary.Text = $"{models.Count} 个模型 · {FormatPeriodCost(quotaSum, hasUnpriced)}";
+        ModelPageSummary.Text = App.Settings.HasModelFilter
+            ? $"筛选 {App.Settings.SelectedModels.Count} 个 · {FormatPeriodCost(quotaSum, hasUnpriced)}"
+            : $"{models.Count} 个模型 · {FormatPeriodCost(quotaSum, hasUnpriced)}";
         ModelList.Children.Clear();
         for (var index = 0; index < models.Count; index++)
         {

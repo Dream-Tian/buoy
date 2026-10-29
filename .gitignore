@@ -6,3 +6,4 @@ artifacts/
 *.suo
 .DS_Store
 xcuserdata/
+.workbuddy-ai/

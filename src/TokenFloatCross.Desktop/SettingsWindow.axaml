@@ -20,6 +20,7 @@
           <StackPanel Orientation="Horizontal">
             <Button x:Name="SourceTab" Classes="segment active" Content="来源" Click="TabButton_Click" Tag="Source" />
             <Button x:Name="WindowTab" Classes="segment" Content="窗口" Click="TabButton_Click" Tag="Window" />
+            <Button x:Name="FilterTab" Classes="segment" Content="筛选" Click="TabButton_Click" Tag="Filter" />
             <Button x:Name="DataTab" Classes="segment" Content="数据" Click="TabButton_Click" Tag="Data" />
             <Button x:Name="UpdateTab" Classes="segment" Content="更新" Click="TabButton_Click" Tag="Update" />
           </StackPanel>
@@ -174,6 +175,28 @@
                     <ComboBoxItem Content="楷体" Tag="kai" />
                     <ComboBoxItem Content="等宽" Tag="mono" />
                   </ComboBox>
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="FilterPage" IsVisible="False">
+            <Border Classes="group" Padding="12,10">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="section-title" Text="模型筛选" />
+                <TextBlock x:Name="FilterScopeText" Classes="muted" TextWrapping="Wrap" />
+                <Border Classes="rule" />
+                <ScrollViewer MaxHeight="196" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel x:Name="FilterModelList" Spacing="0" Margin="0,0,10,0" />
+                </ScrollViewer>
+                <Border Classes="rule" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock x:Name="FilterSummaryText" Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                    <Button Classes="action" Content="全选" Click="FilterSelectAll_Click" />
+                    <Button Classes="action" Content="清空" Click="FilterClear_Click" />
+                    <Button Classes="action" Content="刷新" Click="FilterRefresh_Click" />
+                  </StackPanel>
                 </Grid>
               </StackPanel>
             </Border>
