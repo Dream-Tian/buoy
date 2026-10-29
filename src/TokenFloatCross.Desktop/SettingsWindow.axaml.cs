@@ -58,6 +58,7 @@ public partial class SettingsWindow : Window
         AntigravityBox.IsChecked = settings.AntigravityUsageEnabled;
         ChatGptBox.IsChecked = settings.ChatGptUsageEnabled;
         WorkBuddyBox.IsChecked = settings.WorkBuddyUsageEnabled;
+        WorkBuddyCnBox.IsChecked = settings.WorkBuddyCnUsageEnabled;
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
         WidgetModeBox.IsChecked = settings.WidgetMode;
@@ -161,8 +162,16 @@ public partial class SettingsWindow : Window
     {
         Save(App.Settings with { WorkBuddyUsageEnabled = WorkBuddyBox.IsChecked == true });
         StatusText.Text = WorkBuddyBox.IsChecked == true
-            ? "WorkBuddy 用量已开启，关闭设置后会刷新"
-            : "WorkBuddy 用量已关闭，关闭设置后会刷新";
+            ? "WorkBuddy AI（国际版）用量已开启，关闭设置后会刷新"
+            : "WorkBuddy AI（国际版）用量已关闭，关闭设置后会刷新";
+    }
+
+    private void WorkBuddyCnBox_Click(object? sender, RoutedEventArgs e)
+    {
+        Save(App.Settings with { WorkBuddyCnUsageEnabled = WorkBuddyCnBox.IsChecked == true });
+        StatusText.Text = WorkBuddyCnBox.IsChecked == true
+            ? "WorkBuddy（国内版）用量已开启，关闭设置后会刷新"
+            : "WorkBuddy（国内版）用量已关闭，关闭设置后会刷新";
     }
 
     private void SaveAntigravityButton_Click(object? sender, RoutedEventArgs e)

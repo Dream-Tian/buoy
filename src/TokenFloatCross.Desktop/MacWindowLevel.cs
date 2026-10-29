@@ -130,31 +130,6 @@ internal static class MacWindowLevel
         }
     }
 
-    /// <summary>
-    /// 有窗口要显示时切普通应用（0），全部收起来后回 accessory（1）。
-    /// accessory 应用即使被激活，macOS 也不会把菜单栏交给它——左边永远是空的；
-    /// 只有普通应用才有资格在聚焦时显示自己的菜单。
-    /// </summary>
-    public static void SetRegularApplication(bool regular)
-    {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return;
-        }
-
-        try
-        {
-            var nsApplication = SendPointer(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
-            if (nsApplication != IntPtr.Zero)
-            {
-                SendInteger(nsApplication, sel_registerName("setActivationPolicy:"), regular ? 0 : 1);
-            }
-        }
-        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
-        {
-        }
-    }
-
     private static IntPtr NativeWindow(Window window)
     {
         var handle = window.TryGetPlatformHandle();

@@ -44,6 +44,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         // 窗口激活时菜单栏显示这套菜单，否则 macOS 那边左边是空的。
         NativeMenu.SetMenu(this, App.BuildWindowMenu());
+        OverviewSparkCanvas.SizeChanged += (_, _) => DrawOverviewSpark();
         PointerPressed += (_, eventArgs) =>
         {
             if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -57,7 +58,6 @@ public partial class MainWindow : Window
             {
                 eventArgs.Cancel = true;
                 Hide();
-                App.SyncActivationPolicy();
             }
         };
         UsageTrendCanvas.SizeChanged += (_, _) => DrawTrend();
@@ -77,7 +77,6 @@ public partial class MainWindow : Window
             ApplyWidgetLevel();
             ApplyWidgetPosition();
             RefreshVibrancy();
-            App.SyncActivationPolicy();
             await RefreshAsync();
         };
         PositionChanged += (_, _) =>
@@ -110,7 +109,6 @@ public partial class MainWindow : Window
         WidgetShell.IsVisible = widget;
         Topmost = App.Settings.KeepWindowOnTop;
         RefreshVibrancy();
-        App.SyncActivationPolicy();
 
         if (!changed)
         {
@@ -238,7 +236,6 @@ public partial class MainWindow : Window
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         Hide();
-        App.SyncActivationPolicy();
     }
 
     private void TabButton_Click(object? sender, RoutedEventArgs e)
@@ -307,11 +304,15 @@ public partial class MainWindow : Window
                 }
             }
 
-            if (settings.WorkBuddyUsageEnabled)
+            if (settings.WorkBuddyUsageEnabled || settings.WorkBuddyCnUsageEnabled)
             {
                 // 会话记录可能有好几 MB，放到后台解析，别卡住界面。
-                var since = DateTime.Now.AddDays(-35);
-                events.AddRange(await Task.Run(() => WorkBuddyUsageReader.ReadRecent(since)));
+                // 窗口给到一年：历史会话的文件很久没写过，但里面的用量仍属于「本月」等时段。
+                var since = DateTime.Now.AddDays(-400);
+                events.AddRange(await Task.Run(() => WorkBuddyUsageReader.ReadRecent(
+                    since,
+                    settings.WorkBuddyUsageEnabled,
+                    settings.WorkBuddyCnUsageEnabled)));
             }
 
             _allEvents = events;
@@ -327,7 +328,7 @@ public partial class MainWindow : Window
                 ? error.Contains("invalid access token", StringComparison.OrdinalIgnoreCase)
                     ? "NewAPI 拒绝了当前 Token。请在设置里重新粘贴访问令牌并保存。"
                     : error
-                : events.Count == 0 && !settings.IsNewApiConfigured && !settings.WorkBuddyUsageEnabled
+                : events.Count == 0 && !settings.IsNewApiConfigured && !settings.WorkBuddyUsageEnabled && !settings.WorkBuddyCnUsageEnabled
                     ? "未配置数据来源，点 ⚙ 填写 NewAPI 地址和令牌。"
                     : DescribeEventCount());
         }
@@ -389,7 +390,8 @@ public partial class MainWindow : Window
 
     private string DescribeEventCount()
     {
-        var text = $"已读取 {_events.Count} 条小时汇总";
+        // 两个来源混在一起：NewAPI 是小时汇总，WorkBuddy 是每条模型调用，所以只说「记录」。
+        var text = $"已读取 {_events.Count} 条记录";
         return App.Settings.HasModelFilter
             ? $"{text} · 已筛选 {App.Settings.SelectedModels.Count} 个模型"
             : text;
@@ -736,13 +738,85 @@ public partial class MainWindow : Window
         OverviewScopeText.Text = App.Settings.HasModelFilter
             ? $"所选时段 · 筛选 {App.Settings.SelectedModels.Count} 个模型"
             : "所选时段";
-        var providers = _events.Select(item => item.Provider).Distinct().ToArray();
-        SourceText.Text = providers.Length == 0 ? "—" : string.Join(" · ", providers);
+        // 消耗直接复用模型页的口径：把所选时段各模型的 quota 加起来，有没定价的就标 ≥。
+        var periodModels = UsageMath.ModelsFor(_events, _period);
+        CostText.Text = FormatPeriodCost(
+            periodModels.Sum(item => item.Quota),
+            periodModels.Any(item => item.Quota <= 0 && (item.Requests > 0 || item.TotalTokens > 0)));
         var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
         var todayQuota = _events.Where(item => item.Timestamp.LocalDateTime >= DateTime.Today).Sum(item => item.Quota);
         App.UpdateTrayTip($"今日 {FormatCount(today.TotalTokens)} · {today.RequestCount}次 · 消耗 {FormatUsd(todayQuota / QuotaPerUnit)}");
         RenderModels();
         DrawTrend();
+        // 此刻布局可能还没跑完，Bounds 还是 0，等一帧再画。
+        Dispatcher.UIThread.Post(DrawOverviewSpark, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// 总览页的迷你走势：把当前时段的趋势点画成一条折线（和趋势页一样往 Canvas 里加图形）。
+    /// </summary>
+    private void DrawOverviewSpark()
+    {
+        var width = OverviewSparkCanvas.Bounds.Width;
+        var height = OverviewSparkCanvas.Bounds.Height;
+        if (width < 2 || height < 2)
+        {
+            return;
+        }
+
+        OverviewSparkCanvas.Children.Clear();
+        var all = UsageMath.TrendFor(_events, _period).Points.Select(item => item.Tokens).ToArray();
+        // 只画到"现在"为止，未来的格子是 0，画出来会像掉零。
+        var count = _period switch
+        {
+            UsagePeriod.Today => DateTime.Now.Hour + 1,
+            UsagePeriod.Week => ((int)DateTime.Now.DayOfWeek + 6) % 7 + 1,
+            _ => DateTime.Now.Day
+        };
+        var points = all.Take(Math.Clamp(count, 2, all.Length)).ToArray();
+        if (points.Length < 2)
+        {
+            return;
+        }
+
+        var maximum = points.Max();
+        var coordinates = new List<Point>();
+        for (var index = 0; index < points.Length; index++)
+        {
+            var x = width * index / (points.Length - 1d);
+            var y = maximum <= 0
+                ? height - 1
+                : height - 1 - (height - 2) * points[index] / (double)maximum;
+            coordinates.Add(new Point(x, y));
+        }
+
+        var area = new Polygon
+        {
+            Fill = Brush("AppAccentBrush"),
+            Opacity = 0.14
+        };
+        area.Points.Add(new Point(coordinates[0].X, height));
+        foreach (var point in coordinates)
+        {
+            area.Points.Add(point);
+        }
+
+        area.Points.Add(new Point(coordinates[^1].X, height));
+        OverviewSparkCanvas.Children.Add(area);
+
+        var line = new Polyline
+        {
+            Stroke = Brush("AppAccentBrush"),
+            StrokeThickness = 1.6,
+            StrokeJoin = PenLineJoin.Round,
+            StrokeLineCap = PenLineCap.Round
+        };
+        foreach (var point in coordinates)
+        {
+            line.Points.Add(point);
+        }
+
+        OverviewSparkCanvas.Children.Add(line);
     }
 
     /// <summary>

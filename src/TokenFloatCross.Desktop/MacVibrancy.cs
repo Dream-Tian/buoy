@@ -78,16 +78,12 @@ internal static class MacVibrancy
 
             if (!EffectViews.TryGetValue(nsWindow, out var effect) || effect == IntPtr.Zero)
             {
-                var effectClass = objc_getClass("NSVisualEffectView");
-                effect = SendPointer(SendPointer(effectClass, sel_registerName("alloc")), sel_registerName("init"));
+                effect = CreateEffectView(cornerRadius);
                 if (effect == IntPtr.Zero)
                 {
                     return false;
                 }
 
-                SendInteger(effect, sel_registerName("setMaterial:"), MaterialPopover);
-                SendInteger(effect, sel_registerName("setBlendingMode:"), BlendingBehindWindow);
-                SendInteger(effect, sel_registerName("setState:"), StateActive);
                 SendInteger(effect, sel_registerName("setAutoresizingMask:"), ResizeWithWindow);
                 // NSWindowBelow：垫在 Avalonia 的渲染视图下面。
                 SendSubview(host, sel_registerName("addSubview:positioned:relativeTo:"), effect, -1, content);
@@ -96,15 +92,7 @@ internal static class MacVibrancy
 
             SendTwoDoubles(effect, sel_registerName("setFrameOrigin:"), 0, 0);
             SendTwoDoubles(effect, sel_registerName("setFrameSize:"), window.Bounds.Width, window.Bounds.Height);
-
-            // 圆角靠 layer 裁掉，否则方角会从外壳的圆角外面露出来。
-            SendInteger(effect, sel_registerName("setWantsLayer:"), 1);
-            var layer = SendPointer(effect, sel_registerName("layer"));
-            if (layer != IntPtr.Zero)
-            {
-                SendDouble(layer, sel_registerName("setCornerRadius:"), cornerRadius);
-                SendInteger(layer, sel_registerName("setMasksToBounds:"), 1);
-            }
+            ApplyCornerRadius(effect, cornerRadius);
 
             return true;
         }
@@ -112,6 +100,44 @@ internal static class MacVibrancy
         {
             // 原生调用不可用时保持纯色窗口，不影响主流程。
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 用 NSVisualEffectView 做窗口背板。
+    /// 试过 macOS 26+ 的 NSGlassEffectView（Liquid Glass），但它作为子视图插进 themeFrame 后
+    /// 会把窗口撑到 1270x672（Auto Layout 参与进来，显式关掉 translatesAutoresizingMask 也没用），
+    /// 所以暂时不用；要用的话得把它作为窗口的 contentView 容器重新组织视图层级。
+    /// </summary>
+    private static IntPtr CreateEffectView(double cornerRadius)
+    {
+        var effectClass = objc_getClass("NSVisualEffectView");
+        if (effectClass == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var effect = SendPointer(SendPointer(effectClass, sel_registerName("alloc")), sel_registerName("init"));
+        if (effect == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        SendInteger(effect, sel_registerName("setMaterial:"), MaterialPopover);
+        SendInteger(effect, sel_registerName("setBlendingMode:"), BlendingBehindWindow);
+        SendInteger(effect, sel_registerName("setState:"), StateActive);
+        return effect;
+    }
+
+    private static void ApplyCornerRadius(IntPtr effect, double cornerRadius)
+    {
+        // NSVisualEffectView 自己没有 cornerRadius，只能靠 layer 裁。
+        SendInteger(effect, sel_registerName("setWantsLayer:"), 1);
+        var layer = SendPointer(effect, sel_registerName("layer"));
+        if (layer != IntPtr.Zero)
+        {
+            SendDouble(layer, sel_registerName("setCornerRadius:"), cornerRadius);
+            SendInteger(layer, sel_registerName("setMasksToBounds:"), 1);
         }
     }
 

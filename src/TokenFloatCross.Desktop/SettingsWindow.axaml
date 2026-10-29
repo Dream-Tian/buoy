@@ -61,11 +61,18 @@
             <Border Classes="group" Padding="12,10">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Classes="section-title" Text="WorkBuddy AI 用量" VerticalAlignment="Center" />
+                  <TextBlock Classes="section-title" Text="WorkBuddy AI（国际版）" VerticalAlignment="Center" />
                   <CheckBox x:Name="WorkBuddyBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="WorkBuddyBox_Click" />
                 </Grid>
                 <TextBlock Classes="muted" TextWrapping="Wrap"
-                           Text="读本机 ~/.workbuddy-ai 的会话记录，只取 token 数和模型名，不读对话内容、不上传。关闭设置后刷新。" />
+                           Text="读本机 ~/.workbuddy-ai 的会话记录，只取 token 数和模型名，不读对话内容、不上传。来源名记为「WorkBuddy AI」。" />
+                <Border Classes="rule" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="section-title" Text="WorkBuddy（国内版）" VerticalAlignment="Center" />
+                  <CheckBox x:Name="WorkBuddyCnBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="WorkBuddyCnBox_Click" />
+                </Grid>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="读本机 ~/.workbuddy 的会话记录，口径同上。来源名记为「WorkBuddy」，与国际版分开统计。" />
               </StackPanel>
             </Border>
 

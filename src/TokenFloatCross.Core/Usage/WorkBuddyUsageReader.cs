@@ -3,26 +3,58 @@ using System.Text.Json;
 namespace Buoy.Usage;
 
 /// <summary>
-/// 从 WorkBuddy AI 的本地会话记录里读 token 用量。每条 assistant 消息在
+/// 从 WorkBuddy 的本地会话记录里读 token 用量。每条 assistant 消息在
 /// providerData.usage 里带 inputTokens / outputTokens / requests，时间戳是毫秒。
+///
+/// 国际版和国内版是两个独立安装，数据目录不同，分开统计：
+///   国际版 ~/.workbuddy-ai/projects → 来源名「WorkBuddy AI」
+///   国内版 ~/.workbuddy/projects    → 来源名「WorkBuddy」
+///
 /// 只读文件，不改动任何东西，也不读对话正文。
 /// </summary>
 public static class WorkBuddyUsageReader
 {
-    private const string ProviderName = "WorkBuddy";
+    /// <summary>一个数据来源：显示用的名字 + 用户目录下的文件夹名。</summary>
+    public sealed record Source(string Provider, string HomeFolder);
+
+    public static readonly Source International = new("WorkBuddy AI", ".workbuddy-ai");
+    public static readonly Source Domestic = new("WorkBuddy", ".workbuddy");
 
     private static readonly object Gate = new();
     private static readonly Dictionary<string, CacheEntry> Cache = new(StringComparer.Ordinal);
 
-    public static IReadOnlyList<TokenUsageEvent> ReadRecent(DateTime since)
+    public static IReadOnlyList<TokenUsageEvent> ReadRecent(DateTime since, bool international, bool domestic)
     {
-        var root = RootPath();
-        if (!Directory.Exists(root))
+        var events = new List<TokenUsageEvent>();
+        if (international)
         {
-            return [];
+            Collect(International, events);
         }
 
-        var events = new List<TokenUsageEvent>();
+        if (domestic)
+        {
+            Collect(Domestic, events);
+        }
+
+        // 同一条消息可能在 reasoning / message / function_call 几种事件里各带一份 usage，
+        // 按「来源 + messageId」去重，否则 token 会被重复累加。跨文件也要去重（会话可能续写到新文件）。
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        return events
+            .Where(item => item.Timestamp.LocalDateTime >= since && seen.Add(item.Id))
+            .ToArray();
+    }
+
+    private static void Collect(Source source, List<TokenUsageEvent> events)
+    {
+        var root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            source.HomeFolder,
+            "projects");
+        if (!Directory.Exists(root))
+        {
+            return;
+        }
+
         IEnumerable<string> paths;
         try
         {
@@ -30,7 +62,7 @@ public static class WorkBuddyUsageReader
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return [];
+            return;
         }
 
         foreach (var path in paths)
@@ -39,7 +71,7 @@ public static class WorkBuddyUsageReader
             try
             {
                 info = new FileInfo(path);
-                if (!info.Exists || info.LastWriteTime < since)
+                if (!info.Exists)
                 {
                     continue;
                 }
@@ -49,13 +81,13 @@ public static class WorkBuddyUsageReader
                 continue;
             }
 
-            events.AddRange(ReadFile(path, info));
+            // 这里不按文件修改时间过滤：历史会话的文件可能很久没写过，
+            // 但里面的用量仍然属于要统计的时段（比如本月）。时间过滤交给调用方按事件时间做。
+            events.AddRange(ReadFile(path, info, source));
         }
-
-        return events.Where(item => item.Timestamp.LocalDateTime >= since).ToArray();
     }
 
-    private static IReadOnlyList<TokenUsageEvent> ReadFile(string path, FileInfo info)
+    private static IReadOnlyList<TokenUsageEvent> ReadFile(string path, FileInfo info, Source source)
     {
         lock (Gate)
         {
@@ -77,7 +109,7 @@ public static class WorkBuddyUsageReader
             while (reader.ReadLine() is { } line)
             {
                 lineNumber++;
-                if (ParseLine(line, session, lineNumber) is { } item)
+                if (ParseLine(line, session, lineNumber, source) is { } item)
                 {
                     events.Add(item);
                 }
@@ -96,7 +128,7 @@ public static class WorkBuddyUsageReader
         return events;
     }
 
-    private static TokenUsageEvent? ParseLine(string line, string session, int lineNumber)
+    private static TokenUsageEvent? ParseLine(string line, string session, int lineNumber, Source source)
     {
         if (line.Length < 40 || !line.Contains("\"usage\"", StringComparison.Ordinal))
         {
@@ -136,12 +168,21 @@ public static class WorkBuddyUsageReader
                 : null;
             if (string.IsNullOrWhiteSpace(model))
             {
-                model = "workbuddy";
+                model = "unknown";
             }
 
+            // 用 messageId 当身份，同一条消息在多种事件里重复出现时只算一次。
+            // 前缀用来源文件夹名，两个来源之间不会互相去重。
+            var messageId = provider.TryGetProperty("messageId", out var idElement) && idElement.ValueKind == JsonValueKind.String
+                ? idElement.GetString()
+                : null;
+            var identity = string.IsNullOrWhiteSpace(messageId)
+                ? $"{source.HomeFolder}:{session}:{lineNumber}"
+                : $"{source.HomeFolder}:{messageId}";
+
             return new TokenUsageEvent(
-                $"workbuddy:{session}:{lineNumber}",
-                ProviderName,
+                identity,
+                source.Provider,
                 DateTimeOffset.FromUnixTimeMilliseconds(stamp).ToLocalTime(),
                 input,
                 output,
@@ -159,11 +200,6 @@ public static class WorkBuddyUsageReader
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
             ? number
             : 0;
-
-    private static string RootPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".workbuddy-ai",
-        "projects");
 
     private sealed record CacheEntry(long Length, DateTime WriteTimeUtc, IReadOnlyList<TokenUsageEvent> Events);
 }

@@ -26,7 +26,8 @@ public sealed record CrossAppSettings(
     string WidgetRange = "today",
     IReadOnlyList<string>? ModelFilter = null,
     bool VibrancyEnabled = true,
-    bool WorkBuddyUsageEnabled = true)
+    bool WorkBuddyUsageEnabled = true,
+    bool WorkBuddyCnUsageEnabled = true)
 {
     public bool IsNewApiConfigured =>
         !string.IsNullOrWhiteSpace(NewApiBaseUrl) &&
@@ -137,7 +138,8 @@ public sealed class CrossSettingsStore
             WidgetRange = NormalizeRange(settings.WidgetRange),
             ModelFilter = NormalizeModels(settings.ModelFilter)?.ToArray(),
             VibrancyEnabled = settings.VibrancyEnabled,
-            WorkBuddyUsageEnabled = settings.WorkBuddyUsageEnabled
+            WorkBuddyUsageEnabled = settings.WorkBuddyUsageEnabled,
+            WorkBuddyCnUsageEnabled = settings.WorkBuddyCnUsageEnabled
         };
         File.WriteAllText(_path, JsonSerializer.Serialize(stored, new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -297,7 +299,8 @@ public sealed class CrossSettingsStore
         NormalizeRange(stored.WidgetRange),
         NormalizeModels(stored.ModelFilter),
         stored.VibrancyEnabled,
-        stored.WorkBuddyUsageEnabled);
+        stored.WorkBuddyUsageEnabled,
+        stored.WorkBuddyCnUsageEnabled);
 
     private sealed class StoredSettings
     {
@@ -342,6 +345,8 @@ public sealed class CrossSettingsStore
         public bool VibrancyEnabled { get; set; } = true;
 
         public bool WorkBuddyUsageEnabled { get; set; } = true;
+
+        public bool WorkBuddyCnUsageEnabled { get; set; } = true;
     }
 
     public static string NormalizeFont(string? key) => key is "rounded" or "song" or "kai" or "mono" ? key : "system";

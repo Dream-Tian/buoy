@@ -50,47 +50,37 @@
 
       <Grid Grid.Row="2" Margin="0,10,0,0">
         <Border x:Name="OverviewPage" Classes="card" Padding="0">
-          <Grid RowDefinitions="*,1,46">
-            <Grid Margin="14,12,8,8" ColumnDefinitions="1.3*,*,*">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <Ellipse Width="7" Height="7" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
-                  <TextBlock Classes="muted" Text="总 TOKEN" Margin="6,0,0,0" />
-                </StackPanel>
-                <TextBlock x:Name="TokensText" Classes="metric" Text="--" Margin="0,8,0,0" />
-                <TextBlock x:Name="OverviewScopeText" Classes="subtle" Text="所选时段" Margin="0,4,0,0" />
+          <Grid RowDefinitions="Auto,*,1,48">
+            <StackPanel Margin="16,12,16,0">
+              <StackPanel Orientation="Horizontal">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
+                <TextBlock Classes="muted" Text="总 TOKEN" Margin="6,0,0,0" />
               </StackPanel>
-              <Border Grid.Column="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="14,0,8,0">
-                <StackPanel VerticalAlignment="Center">
-                  <TextBlock Classes="muted" Text="总请求" />
-                  <TextBlock x:Name="RequestsText" FontSize="20" FontWeight="SemiBold"
-                             Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,6,0,0" />
-                  <TextBlock Classes="subtle" Text="统计次数" Margin="0,4,0,0" />
-                </StackPanel>
-              </Border>
-              <Border Grid.Column="2" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="14,0,8,0">
-                <StackPanel VerticalAlignment="Center">
-                  <TextBlock Classes="muted" Text="来源" />
-                  <TextBlock x:Name="SourceText" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}"
-                             Text="NewAPI" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Classes="subtle" Text="本机配额另计" Margin="0,4,0,0" />
-                </StackPanel>
-              </Border>
-            </Grid>
-            <Border Grid.Row="1" Background="{DynamicResource AppBorderBrush}" />
-            <Grid Grid.Row="2" ColumnDefinitions="*,1,*">
-              <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
-                <TextBlock Classes="muted" Text="RPM" VerticalAlignment="Center" />
-                <TextBlock x:Name="RpmText" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0"
-                           Foreground="{DynamicResource AppTextBrush}" Text="--" VerticalAlignment="Center" />
-                <TextBlock Classes="subtle" Text="次/分" Margin="6,1,0,0" VerticalAlignment="Center" />
+              <TextBlock x:Name="TokensText" Classes="metric" Text="--" Margin="0,8,0,0" />
+              <TextBlock x:Name="OverviewScopeText" Classes="subtle" Text="所选时段" Margin="0,4,0,0" />
+            </StackPanel>
+            <Canvas x:Name="OverviewSparkCanvas" Grid.Row="1" Margin="16,10,16,10" ClipToBounds="True" />
+            <Border Grid.Row="2" Background="{DynamicResource AppBorderBrush}" />
+            <Grid Grid.Row="3" ColumnDefinitions="*,*,*,*">
+              <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                <TextBlock Classes="muted" Text="总请求" />
+                <TextBlock x:Name="RequestsText" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,3,0,0" />
               </StackPanel>
-              <Border Grid.Column="1" Background="{DynamicResource AppBorderBrush}" />
-              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
-                <TextBlock Classes="muted" Text="TPM" VerticalAlignment="Center" />
-                <TextBlock x:Name="TpmText" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0"
-                           Foreground="{DynamicResource AppTextBrush}" Text="--" VerticalAlignment="Center" />
-                <TextBlock Classes="subtle" Text="Token/分" Margin="6,1,0,0" VerticalAlignment="Center" />
+              <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Classes="muted" Text="消耗" />
+                <TextBlock x:Name="CostText" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,3,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Classes="muted" Text="RPM" />
+                <TextBlock x:Name="RpmText" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,3,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="3" Margin="12,0,16,0" VerticalAlignment="Center">
+                <TextBlock Classes="muted" Text="TPM" />
+                <TextBlock x:Name="TpmText" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextBrush}" Text="--" Margin="0,3,0,0" />
               </StackPanel>
             </Grid>
           </Grid>

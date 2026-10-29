@@ -69,6 +69,14 @@ public partial class App : Application
                             ? protocol.Uri?.ToString()
                             : null;
                         HandleUri(uri);
+                        return;
+                    }
+
+                    // 点 Dock 图标 / Cmd+Tab 回到应用时，macOS 会直接把窗口摆出来，
+                    // 不经过 ShowMain，页签就停在上次那个。这里补上同样的处理。
+                    if (args.Kind == ActivationKind.Reopen)
+                    {
+                        ShowMain();
                     }
                 };
             }
@@ -156,7 +164,6 @@ public partial class App : Application
 
         desktop.MainWindow?.Hide();
         _settingsWindow?.Close();
-        SyncActivationPolicy();
     }
 
     private static void ExitApp()
@@ -205,9 +212,9 @@ public partial class App : Application
 
         var window = desktop.MainWindow ?? new MainWindow();
         desktop.MainWindow = window;
-        if (!window.IsVisible && window is MainWindow main)
+        if (window is MainWindow main)
         {
-            // 从隐藏状态重新调出来时回到总览，不沿用上次停留的那个页签。
+            // 每次点「显示」都回到总览，不沿用上次停留的那个页签。
             main.ShowPage("Overview");
         }
 
@@ -215,40 +222,14 @@ public partial class App : Application
         MacWindowLevel.SetFollowsActiveSpace(window);
         window.Show();
         window.WindowState = WindowState.Normal;
+        // Show 之后 Avalonia 可能重设过 collectionBehavior，再设一次，保证激活时
+        // 窗口是"移动到当前 Space"而不是"切到它所在的 Space"。
+        MacWindowLevel.SetFollowsActiveSpace(window);
         // 只 makeKeyAndOrderFront 的话窗口虽然到了最前，应用本身没被激活，
         // 菜单栏还挂在上一个应用名下——所以要显式激活一次。
         MacWindowLevel.ActivateApplication();
         window.Activate();
-        SyncActivationPolicy();
     }
-
-    /// <summary>
-    /// 有可见窗口（桌面卡片除外）时切普通应用，全部收起来后回到菜单栏常驻。
-    /// 普通应用聚焦时才会把菜单栏交给自己；accessory 的菜单栏永远是空的。
-    /// 代价：窗口开着时 Dock 里会出现 Buoy 图标、也进 Cmd+Tab，窗口收起后消失。
-    /// </summary>
-    public static void SyncActivationPolicy()
-    {
-        if (!OperatingSystem.IsMacOS() ||
-            Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return;
-        }
-
-        var mainVisible = desktop.MainWindow is { IsVisible: true } && !Settings.WidgetMode;
-        var settingsVisible = _settingsWindow is { IsVisible: true };
-        var regular = mainVisible || settingsVisible;
-        // 状态没变就不要重复设，重复调用会让菜单栏和 Dock 重新合成、看着像闪一下。
-        if (RegularApplied == regular)
-        {
-            return;
-        }
-
-        RegularApplied = regular;
-        MacWindowLevel.SetRegularApplication(regular);
-    }
-
-    private static bool? RegularApplied { get; set; }
 
     private static SettingsWindow? _settingsWindow;
 
@@ -285,7 +266,6 @@ public partial class App : Application
         window.Closed += async (_, _) =>
         {
             _settingsWindow = null;
-            SyncActivationPolicy();
             if (main is not null)
             {
                 await main.RefreshAfterSettingsAsync();
@@ -294,7 +274,6 @@ public partial class App : Application
         window.Show();
         MacWindowLevel.ActivateApplication();
         window.Activate();
-        SyncActivationPolicy();
     }
 
     private static TrayMenuWindow? _trayMenu;
