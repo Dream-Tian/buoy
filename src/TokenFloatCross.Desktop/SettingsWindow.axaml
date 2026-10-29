@@ -61,6 +61,17 @@
             <Border Classes="group" Padding="12,10">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="section-title" Text="WorkBuddy AI 用量" VerticalAlignment="Center" />
+                  <CheckBox x:Name="WorkBuddyBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="WorkBuddyBox_Click" />
+                </Grid>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="读本机 ~/.workbuddy-ai 的会话记录，只取 token 数和模型名，不读对话内容、不上传。关闭设置后刷新。" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="group" Padding="12,10">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
                   <TextBlock Classes="section-title" Text="本地 Antigravity" VerticalAlignment="Center" />
                   <CheckBox x:Name="AntigravityBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" />
                 </Grid>
@@ -160,6 +171,14 @@
                       <Button x:Name="DarkButton" Classes="segment" Content="深色" Click="ThemeButton_Click" Tag="Dark" />
                     </StackPanel>
                   </Border>
+                </Grid>
+                <Border Classes="rule" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="1">
+                    <TextBlock Text="系统毛玻璃材质" Foreground="{DynamicResource AppTextBrush}" />
+                    <TextBlock Classes="muted" TextWrapping="Wrap" Text="窗口背后用 macOS 原生 vibrancy，跟随浅色 / 深色" />
+                  </StackPanel>
+                  <CheckBox x:Name="VibrancyBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="VibrancyBox_Click" />
                 </Grid>
                 <Border Classes="rule" />
                 <Grid ColumnDefinitions="*,Auto">

@@ -33,6 +33,7 @@ public partial class SettingsWindow : Window
     {
         _mainWindow = mainWindow;
         InitializeComponent();
+        Opened += (_, _) => App.ApplyWindowVibrancy(this, 18);
 
         PointerPressed += (_, eventArgs) =>
         {
@@ -55,11 +56,13 @@ public partial class SettingsWindow : Window
         UserIdBox.Text = settings.NewApiUserId > 0 ? settings.NewApiUserId.ToString() : string.Empty;
         AntigravityBox.IsChecked = settings.AntigravityUsageEnabled;
         ChatGptBox.IsChecked = settings.ChatGptUsageEnabled;
+        WorkBuddyBox.IsChecked = settings.WorkBuddyUsageEnabled;
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
         WidgetModeBox.IsChecked = settings.WidgetMode;
         LaunchAtLoginBox.IsChecked = StartupLaunch.IsEnabled();
         AutoUpdateBox.IsChecked = settings.AutoUpdateCheck;
+        VibrancyBox.IsChecked = settings.VibrancyEnabled;
         ManifestBox.Text = settings.ManifestUrl;
         SelectInterval(settings.NormalizedRefreshSeconds);
         SelectFont(settings.FontStyle);
@@ -151,6 +154,14 @@ public partial class SettingsWindow : Window
         {
             TestAntigravityButton.IsEnabled = true;
         }
+    }
+
+    private void WorkBuddyBox_Click(object? sender, RoutedEventArgs e)
+    {
+        Save(App.Settings with { WorkBuddyUsageEnabled = WorkBuddyBox.IsChecked == true });
+        StatusText.Text = WorkBuddyBox.IsChecked == true
+            ? "WorkBuddy 用量已开启，关闭设置后会刷新"
+            : "WorkBuddy 用量已关闭，关闭设置后会刷新";
     }
 
     private void SaveAntigravityButton_Click(object? sender, RoutedEventArgs e)
@@ -278,6 +289,17 @@ public partial class SettingsWindow : Window
     {
         Save(App.Settings with { AutoUpdateCheck = AutoUpdateBox.IsChecked == true });
         StatusText.Text = AutoUpdateBox.IsChecked == true ? "已开启自动检查" : "已关闭自动检查";
+    }
+
+    private void VibrancyBox_Click(object? sender, RoutedEventArgs e)
+    {
+        var enabled = VibrancyBox.IsChecked == true;
+        Save(App.Settings with { VibrancyEnabled = enabled });
+        // 画笔和原生材质都要重来一遍：材质关掉时窗口退回纯色。
+        App.ApplyTheme(App.Settings.UseDarkTheme);
+        _mainWindow?.RefreshVibrancy();
+        App.ApplyWindowVibrancy(this, 18);
+        StatusText.Text = enabled ? "已启用系统毛玻璃材质" : "已切回纯色窗口";
     }
 
     private void SaveUpdateButton_Click(object? sender, RoutedEventArgs e)

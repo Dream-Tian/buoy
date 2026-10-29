@@ -1,0 +1,169 @@
+using System.Text.Json;
+
+namespace Buoy.Usage;
+
+/// <summary>
+/// 从 WorkBuddy AI 的本地会话记录里读 token 用量。每条 assistant 消息在
+/// providerData.usage 里带 inputTokens / outputTokens / requests，时间戳是毫秒。
+/// 只读文件，不改动任何东西，也不读对话正文。
+/// </summary>
+public static class WorkBuddyUsageReader
+{
+    private const string ProviderName = "WorkBuddy";
+
+    private static readonly object Gate = new();
+    private static readonly Dictionary<string, CacheEntry> Cache = new(StringComparer.Ordinal);
+
+    public static IReadOnlyList<TokenUsageEvent> ReadRecent(DateTime since)
+    {
+        var root = RootPath();
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+
+        var events = new List<TokenUsageEvent>();
+        IEnumerable<string> paths;
+        try
+        {
+            paths = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        foreach (var path in paths)
+        {
+            FileInfo info;
+            try
+            {
+                info = new FileInfo(path);
+                if (!info.Exists || info.LastWriteTime < since)
+                {
+                    continue;
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            events.AddRange(ReadFile(path, info));
+        }
+
+        return events.Where(item => item.Timestamp.LocalDateTime >= since).ToArray();
+    }
+
+    private static IReadOnlyList<TokenUsageEvent> ReadFile(string path, FileInfo info)
+    {
+        lock (Gate)
+        {
+            if (Cache.TryGetValue(path, out var cached) &&
+                cached.Length == info.Length &&
+                cached.WriteTimeUtc == info.LastWriteTimeUtc)
+            {
+                return cached.Events;
+            }
+        }
+
+        var events = new List<TokenUsageEvent>();
+        var session = Path.GetFileNameWithoutExtension(path);
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            var lineNumber = 0;
+            while (reader.ReadLine() is { } line)
+            {
+                lineNumber++;
+                if (ParseLine(line, session, lineNumber) is { } item)
+                {
+                    events.Add(item);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return events;
+        }
+
+        lock (Gate)
+        {
+            Cache[path] = new CacheEntry(info.Length, info.LastWriteTimeUtc, events);
+        }
+
+        return events;
+    }
+
+    private static TokenUsageEvent? ParseLine(string line, string session, int lineNumber)
+    {
+        if (line.Length < 40 || !line.Contains("\"usage\"", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("providerData", out var provider) ||
+                provider.ValueKind != JsonValueKind.Object ||
+                !provider.TryGetProperty("usage", out var usage) ||
+                usage.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var input = ReadLong(usage, "inputTokens");
+            var output = ReadLong(usage, "outputTokens");
+            if (input <= 0 && output <= 0)
+            {
+                return null;
+            }
+
+            if (!root.TryGetProperty("timestamp", out var stampElement) ||
+                stampElement.ValueKind != JsonValueKind.Number ||
+                !stampElement.TryGetInt64(out var stamp) ||
+                stamp <= 0)
+            {
+                return null;
+            }
+
+            var model = provider.TryGetProperty("model", out var modelElement) && modelElement.ValueKind == JsonValueKind.String
+                ? modelElement.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(model))
+            {
+                model = "workbuddy";
+            }
+
+            return new TokenUsageEvent(
+                $"workbuddy:{session}:{lineNumber}",
+                ProviderName,
+                DateTimeOffset.FromUnixTimeMilliseconds(stamp).ToLocalTime(),
+                input,
+                output,
+                model,
+                Quota: 0,
+                RequestCount: Math.Max(1, ReadLong(usage, "requests")));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static long ReadLong(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
+            ? number
+            : 0;
+
+    private static string RootPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".workbuddy-ai",
+        "projects");
+
+    private sealed record CacheEntry(long Length, DateTime WriteTimeUtc, IReadOnlyList<TokenUsageEvent> Events);
+}

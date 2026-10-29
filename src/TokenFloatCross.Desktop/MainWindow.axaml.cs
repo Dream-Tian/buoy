@@ -73,6 +73,7 @@ public partial class MainWindow : Window
         {
             ApplyWidgetLevel();
             ApplyWidgetPosition();
+            RefreshVibrancy();
             await RefreshAsync();
         };
         PositionChanged += (_, _) =>
@@ -104,6 +105,7 @@ public partial class MainWindow : Window
         FullShell.IsVisible = !widget;
         WidgetShell.IsVisible = widget;
         Topmost = App.Settings.KeepWindowOnTop;
+        RefreshVibrancy();
 
         if (!changed)
         {
@@ -130,6 +132,11 @@ public partial class MainWindow : Window
         ApplyWidgetMode();
         ApplyWidgetLevel();
     }
+
+    /// <summary>
+    /// 窗口外壳的圆角在标准模式和桌面卡片里不一样，毛玻璃要跟着改，否则方角会露出来。
+    /// </summary>
+    public void RefreshVibrancy() => App.ApplyWindowVibrancy(this, App.Settings.WidgetMode ? 20 : 18);
 
     private void ApplyWidgetLevel()
     {
@@ -273,23 +280,47 @@ public partial class MainWindow : Window
         var started = Stopwatch.StartNew();
         try
         {
+            var events = new List<TokenUsageEvent>();
+            string? error = null;
+
             if (settings.IsNewApiConfigured)
             {
-                _allEvents = await _client.ReadRecentAsync(new NewApiSettings(
-                    settings.NewApiBaseUrl,
-                    settings.NewApiAccessToken,
-                    settings.NewApiUserId));
-                ApplyModelFilter();
-                _lastSuccessfulRefreshUtc = DateTimeOffset.UtcNow;
-                _lastRefreshHadError = false;
-                SetStatus(DescribeEventCount());
-                Render();
+                try
+                {
+                    events.AddRange(await _client.ReadRecentAsync(new NewApiSettings(
+                        settings.NewApiBaseUrl,
+                        settings.NewApiAccessToken,
+                        settings.NewApiUserId)));
+                }
+                catch (Exception exception)
+                {
+                    error = exception.Message;
+                }
             }
-            else
+
+            if (settings.WorkBuddyUsageEnabled)
             {
-                _lastRefreshHadError = false;
-                SetStatus("未配置 NewAPI，点 ⚙ 填写地址和令牌。");
+                // 会话记录可能有好几 MB，放到后台解析，别卡住界面。
+                var since = DateTime.Now.AddDays(-35);
+                events.AddRange(await Task.Run(() => WorkBuddyUsageReader.ReadRecent(since)));
             }
+
+            _allEvents = events;
+            ApplyModelFilter();
+            _lastRefreshHadError = error is not null;
+            if (error is null)
+            {
+                _lastSuccessfulRefreshUtc = DateTimeOffset.UtcNow;
+            }
+
+            Render();
+            SetStatus(error is not null
+                ? error.Contains("invalid access token", StringComparison.OrdinalIgnoreCase)
+                    ? "NewAPI 拒绝了当前 Token。请在设置里重新粘贴访问令牌并保存。"
+                    : error
+                : events.Count == 0 && !settings.IsNewApiConfigured && !settings.WorkBuddyUsageEnabled
+                    ? "未配置数据来源，点 ⚙ 填写 NewAPI 地址和令牌。"
+                    : DescribeEventCount());
         }
         catch (Exception exception)
         {
@@ -342,7 +373,9 @@ public partial class MainWindow : Window
         }
 
         var allowed = new HashSet<string>(selected, StringComparer.Ordinal);
-        _events = _allEvents.Where(item => allowed.Contains(item.NormalizedModel)).ToArray();
+        _events = _allEvents
+            .Where(item => allowed.Contains(item.QualifiedModel) || allowed.Contains(item.NormalizedModel))
+            .ToArray();
     }
 
     private string DescribeEventCount()
@@ -694,6 +727,8 @@ public partial class MainWindow : Window
         OverviewScopeText.Text = App.Settings.HasModelFilter
             ? $"所选时段 · 筛选 {App.Settings.SelectedModels.Count} 个模型"
             : "所选时段";
+        var providers = _events.Select(item => item.Provider).Distinct().ToArray();
+        SourceText.Text = providers.Length == 0 ? "—" : string.Join(" · ", providers);
         var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
         var todayQuota = _events.Where(item => item.Timestamp.LocalDateTime >= DateTime.Today).Sum(item => item.Quota);
         App.UpdateTrayTip($"今日 {FormatCount(today.TotalTokens)} · {today.RequestCount}次 · 消耗 {FormatUsd(todayQuota / QuotaPerUnit)}");

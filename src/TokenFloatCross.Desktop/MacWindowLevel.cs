@@ -69,6 +69,11 @@ internal static class MacWindowLevel
         }
     }
 
+    /// <summary>
+    /// enabled 为 true 时把窗口压到桌面层（桌面卡片用）：层级压到桌面图标之上，
+    /// 并带上 canJoinAllSpaces|stationary 让它跨 Space 常驻。
+    /// 交互用的主窗口不要走这条路——切 Space 时窗口会被重新合成而闪动。
+    /// </summary>
     public static void SetDesktopLevel(Window window, bool enabled, bool topmost = false)
     {
         if (!OperatingSystem.IsMacOS())

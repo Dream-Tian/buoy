@@ -153,8 +153,10 @@ public partial class App : Application
 
         if (OperatingSystem.IsMacOS() && !Settings.KeepWindowOnTop)
         {
-            // 默认贴在桌面层：从菜单栏点「显示」不会盖住正在用的窗口，也不抢焦点。
-            MacWindowLevel.SetDesktopLevel(window, true);
+            // 只把窗口放出来，不激活应用：它会停在普通层级、排在当前应用后面，
+            // 不抢焦点也不会盖住正在用的窗口。压在桌面层（kCGDesktopIconWindowLevel）
+            // 那套做法会带来切 Space 闪动、鼠标事件被桌面窗口吃掉等问题，这里不用。
+            MacWindowLevel.SetDesktopLevel(window, false, false);
             return;
         }
 
@@ -293,8 +295,15 @@ public partial class App : Application
         }
 
         Current.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        // 毛玻璃只在 macOS 上生效；关掉或插不进去时，所有画笔退回不透明色。
+        var vibrancy = Settings.VibrancyEnabled && OperatingSystem.IsMacOS() && !VibrancyUnavailable;
         SetBrush("AppBackgroundBrush", dark ? "#1C1C1E" : "#FFFFFF");
-        SetBrush("AppPanelBrush", dark ? "#1C1C1E" : "#FFFFFF");
+        SetBrush("AppVibrancyBrush", !vibrancy
+            ? (dark ? "#1C1C1E" : "#FFFFFF")
+            : (dark ? "#59000000" : "#59FFFFFF"));
+        SetBrush("AppPanelBrush", vibrancy
+            ? (dark ? "#D91C1C1E" : "#D9FFFFFF")
+            : (dark ? "#1C1C1E" : "#FFFFFF"));
         SetBrush("AppTextBrush", dark ? "#F5F5F7" : "#1D1D1F");
         SetBrush("AppMutedBrush", dark ? "#98989D" : "#86868B");
         SetBrush("AppBorderBrush", dark ? "#38383A" : "#E8E8ED");
@@ -304,10 +313,42 @@ public partial class App : Application
         SetBrush("AppBlueBrush", dark ? "#6FB3E8" : "#0A6CBF");
         SetBrush("AppVioletBrush", dark ? "#C4B0F0" : "#6B4FB5");
         SetBrush("AppSubtleBrush", dark ? "#7C7C80" : "#A1A1A6");
-        SetBrush("AppSegmentBrush", dark ? "#2C2C2E" : "#F2F2F4");
+        SetBrush("AppSegmentBrush", vibrancy
+            ? (dark ? "#2EFFFFFF" : "#1F787880")
+            : (dark ? "#2C2C2E" : "#F2F2F4"));
+        // 分段按钮的未选中文字：压在轨道上要够清楚，所以比普通 muted 深一档。
+        SetBrush("AppSegmentTextBrush", vibrancy
+            ? (dark ? "#B4B4BA" : "#5E5E66")
+            : (dark ? "#98989D" : "#86868B"));
         SetBrush("AppFrameBrush", dark ? "#38383A" : "#E8E8ED");
-        SetBrush("AppGroupBrush", dark ? "#2C2C2E" : "#F5F5F7");
+        SetBrush("AppGroupBrush", vibrancy
+            ? (dark ? "#991C1C1E" : "#99FFFFFF")
+            : (dark ? "#2C2C2E" : "#F5F5F7"));
         SetBrush("AppFieldBrush", dark ? "#2C2C2E" : "#FFFFFF");
         SetBrush("AppFieldBorderBrush", dark ? "#48484A" : "#D8D8DE");
     }
+
+    /// <summary>
+    /// 按当前设置给窗口垫系统材质；关掉材质时把原生视图摘掉。
+    /// 插不进去就把整套画笔退回不透明，免得窗口变成一块看不清的玻璃板。
+    /// </summary>
+    public static void ApplyWindowVibrancy(Window window, double cornerRadius)
+    {
+        if (!Settings.VibrancyEnabled || !OperatingSystem.IsMacOS())
+        {
+            MacVibrancy.Remove(window);
+            return;
+        }
+
+        if (MacVibrancy.Apply(window, cornerRadius) || VibrancyUnavailable)
+        {
+            return;
+        }
+
+        VibrancyUnavailable = true;
+        ApplyTheme(Settings.UseDarkTheme);
+    }
+
+    /// <summary>原生材质不可用（拿不到原生窗口等），本次运行一律用纯色。</summary>
+    private static bool VibrancyUnavailable { get; set; }
 }

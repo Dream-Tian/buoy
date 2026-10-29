@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Style Selector="Window.shell">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="TransparencyLevelHint" Value="Transparent" />
+    <Setter Property="TransparencyLevelHint" Value="Blur,Transparent" />
     <Setter Property="SystemDecorations" Value="None" />
     <Setter Property="FontFamily" Value="SF Pro Text, SF Pro Display, PingFang SC, Helvetica Neue, Microsoft YaHei UI" />
   </Style>
 
   <Style Selector="Border.shell">
-    <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+    <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="18" />
@@ -16,7 +16,7 @@
   </Style>
 
   <Style Selector="Border.widget">
-    <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+    <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="20" />
@@ -141,7 +141,7 @@
     <Setter Property="Padding" Value="9,0" />
     <Setter Property="Margin" Value="1,0" />
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="{DynamicResource AppMutedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AppSegmentTextBrush}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="FontSize" Value="12" />

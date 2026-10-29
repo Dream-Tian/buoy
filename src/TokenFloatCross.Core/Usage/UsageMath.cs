@@ -19,6 +19,13 @@ public sealed record TokenUsageEvent(
 {
     public string NormalizedModel => string.IsNullOrWhiteSpace(Model) ? "未标注模型" : Model;
 
+    /// <summary>
+    /// 带供应商前缀的模型名。不同来源可能有同名模型，统计和筛选都按这个走。
+    /// </summary>
+    public string QualifiedModel => string.IsNullOrWhiteSpace(Provider)
+        ? NormalizedModel
+        : $"{Provider} · {NormalizedModel}";
+
     public long TotalTokens => InputTokens + OutputTokens;
 }
 
@@ -85,7 +92,7 @@ public static class UsageMath
                 var timestamp = item.Timestamp.LocalDateTime;
                 return timestamp >= start && timestamp <= current;
             })
-            .GroupBy(item => item.NormalizedModel)
+            .GroupBy(item => item.QualifiedModel)
             .Select(group => new ModelUsageSummary(
                 group.Key,
                 group.Sum(item => Math.Max(0, item.InputTokens)),

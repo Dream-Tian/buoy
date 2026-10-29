@@ -71,8 +71,8 @@
               <Border Grid.Column="2" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1,0,0,0" Padding="14,0,8,0">
                 <StackPanel VerticalAlignment="Center">
                   <TextBlock Classes="muted" Text="来源" />
-                  <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}"
-                             Text="NewAPI" Margin="0,8,0,0" />
+                  <TextBlock x:Name="SourceText" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AppTextBrush}"
+                             Text="NewAPI" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
                   <TextBlock Classes="subtle" Text="本机配额另计" Margin="0,4,0,0" />
                 </StackPanel>
               </Border>
