@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -37,6 +38,8 @@ public partial class App : Application
         {
             MacWidgetSnapshotPublisher.StartServer();
             desktop.MainWindow = new MainWindow();
+            // 应用级菜单（菜单栏第一项）。窗口菜单只负责「窗口」，两者合起来才是完整菜单栏。
+            NativeMenu.SetMenu(this, BuildAppMenu());
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             // 菜单栏常驻用 OnExplicitShutdown，关窗口不退出；但系统注销/重启发来的退出请求要放行，
@@ -111,6 +114,60 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    /// <summary>
+    /// 应用菜单（菜单栏第一项，macOS 会把它显示成应用名）。
+    /// 这是应用级菜单的条目，不是二级菜单。
+    /// </summary>
+    public static NativeMenu BuildAppMenu()
+    {
+        var menu = new NativeMenu();
+        menu.Add(MenuItem("设置…", new KeyGesture(Key.OemComma, KeyModifiers.Meta), ShowSettings));
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(MenuItem("隐藏 Buoy", new KeyGesture(Key.H, KeyModifiers.Meta), HideWindows));
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(MenuItem("退出 Buoy", new KeyGesture(Key.Q, KeyModifiers.Meta), ExitApp));
+        return menu;
+    }
+
+    /// <summary>窗口菜单栏里除应用菜单之外的那几项。</summary>
+    public static NativeMenu BuildWindowMenu()
+    {
+        var menu = new NativeMenu();
+        var windowMenu = new NativeMenuItem("窗口") { Menu = new NativeMenu() };
+        windowMenu.Menu.Add(MenuItem("显示主窗口", new KeyGesture(Key.D0, KeyModifiers.Meta), ShowMain));
+        windowMenu.Menu.Add(MenuItem("关闭窗口", new KeyGesture(Key.W, KeyModifiers.Meta), HideWindows));
+        menu.Add(windowMenu);
+        return menu;
+    }
+
+    private static NativeMenuItem MenuItem(string header, KeyGesture gesture, Action action)
+    {
+        var item = new NativeMenuItem(header) { Gesture = gesture };
+        item.Click += (_, _) => action();
+        return item;
+    }
+
+    private static void HideWindows()
+    {
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        desktop.MainWindow?.Hide();
+        _settingsWindow?.Close();
+        SyncActivationPolicy();
+    }
+
+    private static void ExitApp()
+    {
+        IsExiting = true;
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+        }
+    }
+
     private static bool IsBuoyUri(string argument) =>
         argument.StartsWith("buoy:", StringComparison.OrdinalIgnoreCase);
 
@@ -148,22 +205,50 @@ public partial class App : Application
 
         var window = desktop.MainWindow ?? new MainWindow();
         desktop.MainWindow = window;
+        if (!window.IsVisible && window is MainWindow main)
+        {
+            // 从隐藏状态重新调出来时回到总览，不沿用上次停留的那个页签。
+            main.ShowPage("Overview");
+        }
+
+        // 窗口在别的 Space 上时跟到当前 Space，而不是把用户切回去。
+        MacWindowLevel.SetFollowsActiveSpace(window);
         window.Show();
         window.WindowState = WindowState.Normal;
+        // 只 makeKeyAndOrderFront 的话窗口虽然到了最前，应用本身没被激活，
+        // 菜单栏还挂在上一个应用名下——所以要显式激活一次。
+        MacWindowLevel.ActivateApplication();
+        window.Activate();
+        SyncActivationPolicy();
+    }
 
-        if (OperatingSystem.IsMacOS() && !Settings.KeepWindowOnTop)
+    /// <summary>
+    /// 有可见窗口（桌面卡片除外）时切普通应用，全部收起来后回到菜单栏常驻。
+    /// 普通应用聚焦时才会把菜单栏交给自己；accessory 的菜单栏永远是空的。
+    /// 代价：窗口开着时 Dock 里会出现 Buoy 图标、也进 Cmd+Tab，窗口收起后消失。
+    /// </summary>
+    public static void SyncActivationPolicy()
+    {
+        if (!OperatingSystem.IsMacOS() ||
+            Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // 只把窗口放出来，不激活应用：它会停在普通层级、排在当前应用后面，
-            // 不抢焦点也不会盖住正在用的窗口。压在桌面层（kCGDesktopIconWindowLevel）
-            // 那套做法会带来切 Space 闪动、鼠标事件被桌面窗口吃掉等问题，这里不用。
-            MacWindowLevel.SetDesktopLevel(window, false, false);
             return;
         }
 
-        // 勾了「置于顶层」，或者其他平台，正常抬到最前。
-        MacWindowLevel.ActivateApplication();
-        window.Activate();
+        var mainVisible = desktop.MainWindow is { IsVisible: true } && !Settings.WidgetMode;
+        var settingsVisible = _settingsWindow is { IsVisible: true };
+        var regular = mainVisible || settingsVisible;
+        // 状态没变就不要重复设，重复调用会让菜单栏和 Dock 重新合成、看着像闪一下。
+        if (RegularApplied == regular)
+        {
+            return;
+        }
+
+        RegularApplied = regular;
+        MacWindowLevel.SetRegularApplication(regular);
     }
+
+    private static bool? RegularApplied { get; set; }
 
     private static SettingsWindow? _settingsWindow;
 
@@ -200,6 +285,7 @@ public partial class App : Application
         window.Closed += async (_, _) =>
         {
             _settingsWindow = null;
+            SyncActivationPolicy();
             if (main is not null)
             {
                 await main.RefreshAfterSettingsAsync();
@@ -208,6 +294,7 @@ public partial class App : Application
         window.Show();
         MacWindowLevel.ActivateApplication();
         window.Activate();
+        SyncActivationPolicy();
     }
 
     private static TrayMenuWindow? _trayMenu;

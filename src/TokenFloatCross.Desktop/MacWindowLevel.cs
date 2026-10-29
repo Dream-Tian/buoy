@@ -19,6 +19,10 @@ internal static class MacWindowLevel
     // canJoinAllSpaces | stationary | ignoresCycle
     private const ulong DesktopBehavior = 1 | 16 | 64;
 
+    // NSWindowCollectionBehaviorMoveToActiveSpace：窗口显示时跟到当前 Space，
+    // 而不是把用户切回它上次所在的那个 Space。
+    private const ulong MoveToActiveSpace = 2;
+
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
     private static extern IntPtr SendPointer(IntPtr receiver, IntPtr selector);
 
@@ -83,31 +87,13 @@ internal static class MacWindowLevel
 
         try
         {
-            var handle = window.TryGetPlatformHandle();
-            if (handle is null || handle.Handle == IntPtr.Zero)
+            var target = NativeWindow(window);
+            if (target == IntPtr.Zero)
             {
                 return;
             }
 
-            var target = handle.Handle;
-            var setLevel = sel_registerName("setLevel:");
-            if (!RespondsTo(target, setLevel))
-            {
-                // Avalonia 可能给的是 NSView，往上取它所在的 NSWindow。
-                var windowSelector = sel_registerName("window");
-                if (!RespondsTo(target, windowSelector))
-                {
-                    return;
-                }
-
-                target = SendPointer(target, windowSelector);
-                if (target == IntPtr.Zero)
-                {
-                    return;
-                }
-            }
-
-            SendInteger(target, setLevel, enabled ? DesktopIconLevel : (topmost ? FloatingLevel : NormalLevel));
+            SendInteger(target, sel_registerName("setLevel:"), enabled ? DesktopIconLevel : (topmost ? FloatingLevel : NormalLevel));
             SendUnsignedInteger(target, sel_registerName("setCollectionBehavior:"), enabled ? DesktopBehavior : 0);
             if (enabled)
             {
@@ -118,6 +104,74 @@ internal static class MacWindowLevel
         {
             // 拿不到原生窗口时保持普通窗口，不影响主流程。
         }
+    }
+
+    /// <summary>
+    /// 让窗口显示时跟到当前 Space。不设的话窗口会留在上次所在的 Space，
+    /// 从别处点「显示」会先把用户切回那个 Space。
+    /// </summary>
+    public static void SetFollowsActiveSpace(Window window)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        try
+        {
+            var target = NativeWindow(window);
+            if (target != IntPtr.Zero)
+            {
+                SendUnsignedInteger(target, sel_registerName("setCollectionBehavior:"), MoveToActiveSpace);
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// 有窗口要显示时切普通应用（0），全部收起来后回 accessory（1）。
+    /// accessory 应用即使被激活，macOS 也不会把菜单栏交给它——左边永远是空的；
+    /// 只有普通应用才有资格在聚焦时显示自己的菜单。
+    /// </summary>
+    public static void SetRegularApplication(bool regular)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        try
+        {
+            var nsApplication = SendPointer(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+            if (nsApplication != IntPtr.Zero)
+            {
+                SendInteger(nsApplication, sel_registerName("setActivationPolicy:"), regular ? 0 : 1);
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
+    }
+
+    private static IntPtr NativeWindow(Window window)
+    {
+        var handle = window.TryGetPlatformHandle();
+        if (handle is null || handle.Handle == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var target = handle.Handle;
+        if (RespondsTo(target, sel_registerName("setLevel:")))
+        {
+            return target;
+        }
+
+        // Avalonia 可能给的是 NSView，往上取它所在的 NSWindow。
+        var windowSelector = sel_registerName("window");
+        return RespondsTo(target, windowSelector) ? SendPointer(target, windowSelector) : IntPtr.Zero;
     }
 
     private static bool RespondsTo(IntPtr target, IntPtr selector) =>

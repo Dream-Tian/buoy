@@ -42,6 +42,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // 窗口激活时菜单栏显示这套菜单，否则 macOS 那边左边是空的。
+        NativeMenu.SetMenu(this, App.BuildWindowMenu());
         PointerPressed += (_, eventArgs) =>
         {
             if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -55,6 +57,7 @@ public partial class MainWindow : Window
             {
                 eventArgs.Cancel = true;
                 Hide();
+                App.SyncActivationPolicy();
             }
         };
         UsageTrendCanvas.SizeChanged += (_, _) => DrawTrend();
@@ -74,6 +77,7 @@ public partial class MainWindow : Window
             ApplyWidgetLevel();
             ApplyWidgetPosition();
             RefreshVibrancy();
+            App.SyncActivationPolicy();
             await RefreshAsync();
         };
         PositionChanged += (_, _) =>
@@ -106,6 +110,7 @@ public partial class MainWindow : Window
         WidgetShell.IsVisible = widget;
         Topmost = App.Settings.KeepWindowOnTop;
         RefreshVibrancy();
+        App.SyncActivationPolicy();
 
         if (!changed)
         {
@@ -230,7 +235,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CloseButton_Click(object? sender, RoutedEventArgs e) => Hide();
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        Hide();
+        App.SyncActivationPolicy();
+    }
 
     private void TabButton_Click(object? sender, RoutedEventArgs e)
     {

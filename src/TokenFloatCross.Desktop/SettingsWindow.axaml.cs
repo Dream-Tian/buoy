@@ -33,6 +33,7 @@ public partial class SettingsWindow : Window
     {
         _mainWindow = mainWindow;
         InitializeComponent();
+        NativeMenu.SetMenu(this, App.BuildWindowMenu());
         Opened += (_, _) => App.ApplyWindowVibrancy(this, 18);
 
         PointerPressed += (_, eventArgs) =>
