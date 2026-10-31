@@ -34,8 +34,8 @@ public partial class MainWindow : Window
     private const double FullHeight = 392;
     private const double WidgetWidth = 300;
     private const double WidgetHeight = 156;
-    private const double MiniWidth = 320;
-    private const double MiniHeight = 110;
+    private const double MiniWidth = 180;
+    private const double MiniHeight = 68;
     private bool _lastRefreshHadError;
     private DateTimeOffset? _lastSuccessfulRefreshUtc;
     private const double TrendPlotLeft = 40;
@@ -213,7 +213,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void RefreshVibrancy() => App.ApplyWindowVibrancy(this, CurrentMode() switch
     {
-        ShellMode.Mini => 16,
+        ShellMode.Mini => 12,
         ShellMode.Widget => 20,
         _ => 18
     });

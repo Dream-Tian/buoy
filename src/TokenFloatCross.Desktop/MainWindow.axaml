@@ -207,10 +207,10 @@
     <Grid ColumnDefinitions="*,1,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center">
       <TextBlock Grid.Row="0" Grid.Column="0" Classes="mini-label" Text="今日 Token" />
       <TextBlock Grid.Row="1" Grid.Column="0" x:Name="MiniTokensText" Classes="mini-token" Text="--" />
-      <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,3" />
-      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="16,0,0,0" />
+      <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,2" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="10,0,0,0" />
       <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MiniCostText" Classes="mini-cost"
-                 Text="$0.00" Margin="16,0,0,0" MinWidth="104" VerticalAlignment="Bottom" />
+                 Text="$0.00" Margin="10,0,0,0" MinWidth="52" VerticalAlignment="Bottom" />
     </Grid>
   </Border>
   </Grid>
