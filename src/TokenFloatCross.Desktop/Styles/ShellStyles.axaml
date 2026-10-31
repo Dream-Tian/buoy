@@ -4,7 +4,6 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="TransparencyLevelHint" Value="Blur,Transparent" />
     <Setter Property="SystemDecorations" Value="None" />
-    <Setter Property="FontFamily" Value="SF Pro Text, SF Pro Display, PingFang SC, Helvetica Neue, Microsoft YaHei UI" />
   </Style>
 
   <Style Selector="Border.shell">
@@ -34,6 +33,32 @@
 
   <Style Selector="Border.widget:pointerover StackPanel.widget-actions">
     <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <!-- 迷你模式：一张只放两个数字的小卡片，圆角比标准窗口更圆。 -->
+  <Style Selector="Border.mini">
+    <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="8,4" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-label">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource AppMutedBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-token">
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-cost">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AppAccentBrush}" />
   </Style>
 
   <Style Selector="TextBlock.title">

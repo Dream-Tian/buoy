@@ -20,6 +20,7 @@ public sealed record CrossAppSettings(
     DateTimeOffset? UpdateLastCheckedUtc = null,
     bool LaunchAtLogin = false,
     bool WidgetMode = false,
+    bool MiniMode = false,
     int? WidgetX = null,
     int? WidgetY = null,
     string FontStyle = "system",
@@ -132,6 +133,7 @@ public sealed class CrossSettingsStore
             UpdateLastCheckedUtc = settings.UpdateLastCheckedUtc,
             LaunchAtLogin = settings.LaunchAtLogin,
             WidgetMode = settings.WidgetMode,
+            MiniMode = settings.MiniMode,
             WidgetX = settings.WidgetX,
             WidgetY = settings.WidgetY,
             FontStyle = NormalizeFont(settings.FontStyle),
@@ -293,6 +295,7 @@ public sealed class CrossSettingsStore
         stored.UpdateLastCheckedUtc,
         stored.LaunchAtLogin,
         stored.WidgetMode,
+        stored.MiniMode,
         stored.WidgetX,
         stored.WidgetY,
         NormalizeFont(stored.FontStyle),
@@ -332,6 +335,8 @@ public sealed class CrossSettingsStore
 
         public bool WidgetMode { get; set; }
 
+        public bool MiniMode { get; set; }
+
         public int? WidgetX { get; set; }
 
         public int? WidgetY { get; set; }
@@ -349,7 +354,8 @@ public sealed class CrossSettingsStore
         public bool WorkBuddyCnUsageEnabled { get; set; } = true;
     }
 
-    public static string NormalizeFont(string? key) => key is "rounded" or "song" or "kai" or "mono" ? key : "system";
+    public static string NormalizeFont(string? key) =>
+        key is "rounded" or "song" or "source-serif" or "source-sans" or "kai" or "mono" ? key : "system";
 
     public static string NormalizeRange(string? key) =>
         key is "week" or "month" or "24h" or "7d" or "30d" ? key : "today";

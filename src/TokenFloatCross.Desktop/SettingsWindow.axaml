@@ -161,6 +161,14 @@
                 <Border Classes="rule" />
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="1">
+                    <TextBlock Text="迷你模式" Foreground="{DynamicResource AppTextBrush}" />
+                    <TextBlock Classes="muted" TextWrapping="Wrap" Text="只显示今日 Token 和已知消耗，双击窗口可来回切换" />
+                  </StackPanel>
+                  <CheckBox x:Name="MiniModeBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="MiniModeBox_Click" />
+                </Grid>
+                <Border Classes="rule" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="1">
                     <TextBlock Text="开机自启" Foreground="{DynamicResource AppTextBrush}" />
                     <TextBlock Classes="muted" Text="登录后自动打开 Buoy" />
                   </StackPanel>
@@ -198,6 +206,8 @@
                     <ComboBoxItem Content="系统默认" Tag="system" />
                     <ComboBoxItem Content="圆体" Tag="rounded" />
                     <ComboBoxItem Content="宋体" Tag="song" />
+                    <ComboBoxItem Content="思源宋体" Tag="source-serif" />
+                    <ComboBoxItem Content="思源黑体" Tag="source-sans" />
                     <ComboBoxItem Content="楷体" Tag="kai" />
                     <ComboBoxItem Content="等宽" Tag="mono" />
                   </ComboBox>
