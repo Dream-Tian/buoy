@@ -269,23 +269,13 @@ public partial class MainWindow : Window
         App.SettingsStore.Save(App.Settings);
     }
 
-    private void EnterWidget_Click(object? sender, RoutedEventArgs e)
-    {
-        App.Settings = App.Settings with { WidgetMode = true, MiniMode = false };
-        App.SettingsStore.Save(App.Settings);
-        RefreshWindowMode();
-        SetStatus("已切成桌面小组件，拖到桌面任意位置即可固定。");
-    }
-
+    /// <summary>桌面小组件卡片右上角的「回到标准窗口」。</summary>
     private void ExitWidget_Click(object? sender, RoutedEventArgs e)
     {
         App.Settings = App.Settings with { WidgetMode = false };
         App.SettingsStore.Save(App.Settings);
         RefreshWindowMode();
     }
-
-    /// <summary>标题栏上的迷你按钮。</summary>
-    private void EnterMini_Click(object? sender, RoutedEventArgs e) => SetMiniMode(true);
 
     /// <summary>双击窗口在标准窗口和迷你卡片之间来回切。</summary>
     private void ToggleMiniMode() => SetMiniMode(!App.Settings.MiniMode);
