@@ -765,58 +765,92 @@ public partial class MainWindow : Window
         }
 
         OverviewSparkCanvas.Children.Clear();
-        var all = UsageMath.TrendFor(_events, _period).Points.Select(item => item.Tokens).ToArray();
-        // 只画到"现在"为止，未来的格子是 0，画出来会像掉零。
-        var count = _period switch
-        {
-            UsagePeriod.Today => DateTime.Now.Hour + 1,
-            UsagePeriod.Week => ((int)DateTime.Now.DayOfWeek + 6) % 7 + 1,
-            _ => DateTime.Now.Day
-        };
-        var points = all.Take(Math.Clamp(count, 2, all.Length)).ToArray();
-        if (points.Length < 2)
+        var series = UsageMath.SeriesFor(_events, _period);
+        if (series.Count == 0 || series[0].Points.Count < 2)
         {
             return;
         }
 
-        var maximum = points.Max();
-        var coordinates = new List<Point>();
-        for (var index = 0; index < points.Length; index++)
+        // 只画到"现在"为止，未来的格子是 0，画出来会像掉零。
+        var total = series[0].Points.Count;
+        var count = Math.Clamp(
+            _period switch
+            {
+                UsagePeriod.Today => DateTime.Now.Hour + 1,
+                UsagePeriod.Week => ((int)DateTime.Now.DayOfWeek + 6) % 7 + 1,
+                _ => DateTime.Now.Day
+            },
+            2,
+            total);
+
+        var totals = new double[count];
+        for (var index = 0; index < count; index++)
         {
-            var x = width * index / (points.Length - 1d);
-            var y = maximum <= 0
-                ? height - 1
-                : height - 1 - (height - 2) * points[index] / (double)maximum;
-            coordinates.Add(new Point(x, y));
+            for (var source = 0; source < series.Count; source++)
+            {
+                totals[index] += series[source].Points[index].Tokens;
+            }
         }
 
-        var area = new Polygon
+        var maximum = totals.Max();
+        var colors = SourceColors(series);
+        FillLegend(OverviewLegend, series, colors, 5, 9);
+        var plotHeight = height - 2;
+
+        // 按来源堆叠，堆起来的高度就是总量。
+        var cumulative = new double[series.Count, count];
+        var running = new double[count];
+        for (var source = 0; source < series.Count; source++)
         {
-            Fill = Brush("AppAccentBrush"),
-            Opacity = 0.14
-        };
-        area.Points.Add(new Point(coordinates[0].X, height));
-        foreach (var point in coordinates)
-        {
-            area.Points.Add(point);
+            for (var index = 0; index < count; index++)
+            {
+                if (maximum > 0)
+                {
+                    running[index] += plotHeight * series[source].Points[index].Tokens / maximum;
+                }
+
+                cumulative[source, index] = running[index];
+            }
         }
 
-        area.Points.Add(new Point(coordinates[^1].X, height));
-        OverviewSparkCanvas.Children.Add(area);
+        double X(int index) => count <= 1 ? 0 : width * index / (count - 1d);
 
-        var line = new Polyline
+        for (var source = 0; source < series.Count; source++)
         {
+            var band = new Points();
+            for (var index = 0; index < count; index++)
+            {
+                band.Add(new Point(X(index), height - 1 - cumulative[source, index]));
+            }
+
+            for (var index = count - 1; index >= 0; index--)
+            {
+                var below = source == 0 ? 0 : cumulative[source - 1, index];
+                band.Add(new Point(X(index), height - 1 - below));
+            }
+
+            var color = colors[source];
+            OverviewSparkCanvas.Children.Add(new Polygon
+            {
+                Points = band,
+                Fill = new SolidColorBrush(Color.FromArgb(130, color.R, color.G, color.B))
+            });
+        }
+
+        var outline = new Points();
+        for (var index = 0; index < count; index++)
+        {
+            outline.Add(new Point(X(index), height - 1 - cumulative[series.Count - 1, index]));
+        }
+
+        OverviewSparkCanvas.Children.Add(new Polyline
+        {
+            Points = outline,
             Stroke = Brush("AppAccentBrush"),
             StrokeThickness = 1.6,
             StrokeJoin = PenLineJoin.Round,
             StrokeLineCap = PenLineCap.Round
-        };
-        foreach (var point in coordinates)
-        {
-            line.Points.Add(point);
-        }
-
-        OverviewSparkCanvas.Children.Add(line);
+        });
     }
 
     /// <summary>
@@ -1032,57 +1066,166 @@ public partial class MainWindow : Window
             lastLabelRight = left + 40;
         }
 
-        var accent = TrendAccent();
+        var series = UsageMath.SeriesFor(_events, _period);
+        var colors = SourceColors(series);
+        RenderTrendLegend(series, colors);
+
         if (_trendChartStyle == TrendChartStyle.Bars)
         {
             var slot = plotWidth / trend.Points.Count;
             var barWidth = Math.Clamp(slot * 0.64, 3, 54);
             for (var index = 0; index < trend.Points.Count; index++)
             {
-                var barHeight = Math.Max(1, TrendValue(trend.Points[index]) / _trendMaximum * plotHeight);
-                var bar = new Rectangle
+                var x = TrendPointX(index, trend.Points.Count, plotWidth);
+                var heights = new double[series.Count];
+                var lastNonZero = -1;
+                for (var source = 0; source < series.Count; source++)
                 {
-                    Width = barWidth,
-                    Height = barHeight,
-                    RadiusX = 2,
-                    RadiusY = 2,
-                    Fill = new SolidColorBrush(accent)
-                };
-                Canvas.SetLeft(bar, TrendPointX(index, trend.Points.Count, plotWidth) - barWidth / 2);
-                Canvas.SetTop(bar, plotBottom - barHeight);
-                UsageTrendCanvas.Children.Add(bar);
+                    heights[source] = SeriesValue(series[source], index) / _trendMaximum * plotHeight;
+                    if (heights[source] > 0.5)
+                    {
+                        lastNonZero = source;
+                    }
+                }
+
+                // 每个来源一段，从底往上堆；堆起来的高度就是这一格的总量。
+                var bottom = plotBottom;
+                for (var source = 0; source < series.Count; source++)
+                {
+                    if (heights[source] <= 0)
+                    {
+                        continue;
+                    }
+
+                    var barHeight = Math.Max(0.8, heights[source]);
+                    var bar = new Rectangle
+                    {
+                        Width = barWidth,
+                        Height = barHeight,
+                        RadiusX = source == lastNonZero ? 2 : 0,
+                        RadiusY = source == lastNonZero ? 2 : 0,
+                        Fill = new SolidColorBrush(colors[source])
+                    };
+                    Canvas.SetLeft(bar, x - barWidth / 2);
+                    Canvas.SetTop(bar, bottom - barHeight);
+                    UsageTrendCanvas.Children.Add(bar);
+                    bottom -= barHeight;
+                }
             }
 
             return;
         }
 
-        var line = new Points();
-        for (var index = 0; index < trend.Points.Count; index++)
+        // 堆叠面积：每个来源画成一条带，最后给总量描一条轮廓线。
+        var cumulative = new double[series.Count, trend.Points.Count];
+        var running = new double[trend.Points.Count];
+        for (var source = 0; source < series.Count; source++)
         {
-            var x = TrendPointX(index, trend.Points.Count, plotWidth);
-            var y = plotBottom - TrendValue(trend.Points[index]) / _trendMaximum * plotHeight;
-            line.Add(new Point(x, y));
+            for (var index = 0; index < trend.Points.Count; index++)
+            {
+                running[index] += SeriesValue(series[source], index) / _trendMaximum * plotHeight;
+                cumulative[source, index] = running[index];
+            }
         }
 
-        var area = new Points { new Point(line[0].X, plotBottom) };
-        foreach (var point in line)
+        for (var source = 0; source < series.Count; source++)
         {
-            area.Add(point);
+            var band = new Points();
+            for (var index = 0; index < trend.Points.Count; index++)
+            {
+                band.Add(new Point(
+                    TrendPointX(index, trend.Points.Count, plotWidth),
+                    plotBottom - cumulative[source, index]));
+            }
+
+            for (var index = trend.Points.Count - 1; index >= 0; index--)
+            {
+                var below = source == 0 ? 0 : cumulative[source - 1, index];
+                band.Add(new Point(
+                    TrendPointX(index, trend.Points.Count, plotWidth),
+                    plotBottom - below));
+            }
+
+            var color = colors[source];
+            UsageTrendCanvas.Children.Add(new Polygon
+            {
+                Points = band,
+                Fill = new SolidColorBrush(Color.FromArgb(150, color.R, color.G, color.B))
+            });
         }
 
-        area.Add(new Point(line[^1].X, plotBottom));
-        UsageTrendCanvas.Children.Add(new Polygon
+        if (series.Count > 0)
         {
-            Points = area,
-            Fill = new SolidColorBrush(Color.FromArgb(36, accent.R, accent.G, accent.B))
-        });
-        UsageTrendCanvas.Children.Add(new Polyline
+            var outline = new Points();
+            for (var index = 0; index < trend.Points.Count; index++)
+            {
+                outline.Add(new Point(
+                    TrendPointX(index, trend.Points.Count, plotWidth),
+                    plotBottom - cumulative[series.Count - 1, index]));
+            }
+
+            // 总量单独一条主色轮廓，和三个来源色区分开。
+            UsageTrendCanvas.Children.Add(new Polyline
+            {
+                Points = outline,
+                Stroke = Brush("AppAccentBrush"),
+                StrokeThickness = 2,
+                StrokeJoin = PenLineJoin.Round
+            });
+        }
+    }
+
+    private double SeriesValue(UsageTrendSeries series, int index) =>
+        index < series.Points.Count ? TrendValue(series.Points[index]) : 0;
+
+    /// <summary>
+    /// 趋势页顶部的来源图例。只有一个来源时不显示（颜色没有区分意义）。
+    /// </summary>
+    private void RenderTrendLegend(IReadOnlyList<UsageTrendSeries> series, IReadOnlyList<Color> colors) =>
+        FillLegend(TrendLegend, series, colors, 6, 10);
+
+    /// <summary>
+    /// 把来源配色画成一排「色点 + 名称」。总览页和趋势页共用，只是尺寸不同。
+    /// </summary>
+    private void FillLegend(
+        StackPanel target,
+        IReadOnlyList<UsageTrendSeries> series,
+        IReadOnlyList<Color> colors,
+        double dotSize,
+        double fontSize)
+    {
+        target.Children.Clear();
+        if (series.Count <= 1)
         {
-            Points = line,
-            Stroke = new SolidColorBrush(accent),
-            StrokeThickness = 2,
-            StrokeJoin = PenLineJoin.Round
-        });
+            target.IsVisible = false;
+            return;
+        }
+
+        target.IsVisible = true;
+        for (var index = 0; index < series.Count; index++)
+        {
+            var item = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 4,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            item.Children.Add(new Ellipse
+            {
+                Width = dotSize,
+                Height = dotSize,
+                Fill = new SolidColorBrush(colors[index]),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            item.Children.Add(new TextBlock
+            {
+                Text = series[index].Provider,
+                FontSize = fontSize,
+                Foreground = Brush("AppMutedBrush"),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            target.Children.Add(item);
+        }
     }
 
     private void UsageTrendCanvas_PointerMoved(object? sender, PointerEventArgs e)
@@ -1133,15 +1276,60 @@ public partial class MainWindow : Window
             ? TrendPlotLeft + (index + 0.5) * plotWidth / count
             : TrendPlotLeft + index * plotWidth / Math.Max(1, count - 1);
 
-    private Color TrendAccent()
+    // 来源配色：已知来源固定拿一个槽位，这样关掉某个来源时其他来源的颜色不会跟着变。
+    private static readonly string[] SourceColorKeys =
+    [
+        "AppBlueBrush", "AppVioletBrush", "AppOrangeBrush", "AppAccentBrush"
+    ];
+
+    private static readonly Dictionary<string, int> SourceColorSlots = new(StringComparer.Ordinal)
     {
-        var key = _trendMetric switch
-        {
-            TrendMetric.Tokens => "AppBlueBrush",
-            TrendMetric.Requests => "AppVioletBrush",
-            _ => "AppOrangeBrush"
-        };
+        ["NewAPI"] = 0,
+        ["WorkBuddy AI"] = 1,
+        ["WorkBuddy"] = 2,
+        ["Antigravity"] = 3
+    };
+
+    private Color PaletteColor(int slot)
+    {
+        var key = SourceColorKeys[Math.Abs(slot) % SourceColorKeys.Length];
         return ((SolidColorBrush)Brush(key)).Color;
+    }
+
+    /// <summary>
+    /// 给每个来源分配颜色：已知来源用固定槽位，其余按顺序补空位。
+    /// </summary>
+    private IReadOnlyList<Color> SourceColors(IReadOnlyList<UsageTrendSeries> series)
+    {
+        var colors = new Color?[series.Count];
+        var used = new HashSet<int>();
+        for (var index = 0; index < series.Count; index++)
+        {
+            if (SourceColorSlots.TryGetValue(series[index].Provider, out var slot))
+            {
+                colors[index] = PaletteColor(slot);
+                used.Add(slot);
+            }
+        }
+
+        var next = 0;
+        for (var index = 0; index < series.Count; index++)
+        {
+            if (colors[index].HasValue)
+            {
+                continue;
+            }
+
+            while (used.Contains(next))
+            {
+                next++;
+            }
+
+            colors[index] = PaletteColor(next);
+            used.Add(next);
+        }
+
+        return colors.Select(color => color ?? PaletteColor(0)).ToArray();
     }
 
     private string FormatTrendAxis(double value) => _trendMetric switch

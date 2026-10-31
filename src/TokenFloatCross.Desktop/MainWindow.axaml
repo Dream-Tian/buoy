@@ -57,7 +57,11 @@
                 <TextBlock Classes="muted" Text="总 TOKEN" Margin="6,0,0,0" />
               </StackPanel>
               <TextBlock x:Name="TokensText" Classes="metric" Text="--" Margin="0,8,0,0" />
-              <TextBlock x:Name="OverviewScopeText" Classes="subtle" Text="所选时段" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+                <TextBlock x:Name="OverviewScopeText" Classes="subtle" Text="所选时段" VerticalAlignment="Center" />
+                <StackPanel x:Name="OverviewLegend" Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
+              </Grid>
             </StackPanel>
             <Canvas x:Name="OverviewSparkCanvas" Grid.Row="1" Margin="16,10,16,10" ClipToBounds="True" />
             <Border Grid.Row="2" Background="{DynamicResource AppBorderBrush}" />
@@ -87,7 +91,7 @@
         </Border>
 
         <Border x:Name="TrendPage" Classes="card" IsVisible="False" Padding="0">
-          <Grid RowDefinitions="Auto,1,*">
+          <Grid RowDefinitions="Auto,Auto,1,*">
             <Grid Margin="14,8,12,8" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
               <Border Grid.RowSpan="2" Width="8" Height="26" CornerRadius="4" Background="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Margin="10,0,8,0" Text="消费趋势" FontSize="14" FontWeight="SemiBold"
@@ -114,8 +118,10 @@
                 </Border>
               </StackPanel>
             </Grid>
-            <Border Grid.Row="1" Background="{DynamicResource AppBorderBrush}" />
-            <Canvas x:Name="UsageTrendCanvas" Grid.Row="2" Margin="4,4,8,6" Background="Transparent"
+            <StackPanel x:Name="TrendLegend" Grid.Row="1" Orientation="Horizontal" Spacing="12"
+                        Margin="14,0,12,6" IsVisible="False" />
+            <Border Grid.Row="2" Background="{DynamicResource AppBorderBrush}" />
+            <Canvas x:Name="UsageTrendCanvas" Grid.Row="3" Margin="4,4,8,6" Background="Transparent"
                     PointerMoved="UsageTrendCanvas_PointerMoved"
                     PointerExited="UsageTrendCanvas_PointerExited" />
           </Grid>

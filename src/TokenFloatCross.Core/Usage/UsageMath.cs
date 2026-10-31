@@ -33,6 +33,9 @@ public sealed record UsageRates(long RequestCount, long TotalTokens, double Aver
 
 public sealed record UsageTrend(string Title, IReadOnlyList<UsageTrendPoint> Points);
 
+/// <summary>某个来源在整条时间轴上的走势，用于按来源分色堆叠。</summary>
+public sealed record UsageTrendSeries(string Provider, IReadOnlyList<UsageTrendPoint> Points);
+
 public sealed record UsageTrendPoint(string Label, long Tokens, long Requests, long Quota);
 
 public sealed record ModelUsageSummary(
@@ -169,6 +172,24 @@ public static class UsageMath
             _ => "本月 · 每日"
         };
         return new UsageTrend(title, points);
+    }
+
+    /// <summary>
+    /// 按来源拆开的趋势。每个来源都对齐到同一条时间轴（同样的点数、同样的格子），
+    /// 这样可以直接逐点堆叠；堆起来正好等于 <see cref="TrendFor"/> 的总量。
+    /// 来源按名字排序，保证同一批数据每次画出来顺序一致。
+    /// </summary>
+    public static IReadOnlyList<UsageTrendSeries> SeriesFor(
+        IEnumerable<TokenUsageEvent> events,
+        UsagePeriod period,
+        DateTime? now = null)
+    {
+        var current = now ?? DateTime.Now;
+        return events
+            .GroupBy(item => string.IsNullOrWhiteSpace(item.Provider) ? "其他" : item.Provider)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new UsageTrendSeries(group.Key, TrendFor(group, period, current).Points))
+            .ToArray();
     }
 
     private static DateTime PeriodStart(UsagePeriod period, DateTime current) => period switch
