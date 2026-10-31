@@ -212,9 +212,9 @@
         <TextBlock x:Name="MiniTokensText" Classes="mini-token" Text="--" />
       </Viewbox>
       <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,1" />
-      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="8,0,0,0" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="6,0,0,0" />
       <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MiniCostText" Classes="mini-cost"
-                 Text="$0.00" Margin="8,0,0,0" MinWidth="48" VerticalAlignment="Bottom" />
+                 Text="$0.00" Margin="6,0,0,0" MinWidth="44" VerticalAlignment="Bottom" />
     </Grid>
   </Border>
   </Grid>

@@ -34,8 +34,8 @@ public partial class MainWindow : Window
     private const double FullHeight = 392;
     private const double WidgetWidth = 300;
     private const double WidgetHeight = 156;
-    private const double MiniWidth = 188;
-    private const double MiniHeight = 60;
+    private const double MiniWidth = 180;
+    private const double MiniHeight = 54;
     private bool _lastRefreshHadError;
     private DateTimeOffset? _lastSuccessfulRefreshUtc;
     private const double TrendPlotLeft = 40;
