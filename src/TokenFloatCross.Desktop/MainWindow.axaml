@@ -202,7 +202,8 @@
   </Border>
 
   <!-- 迷你模式：只留今日 Token 与已知消耗，双击卡片或点 ↗ 回到标准窗口。 -->
-  <Border x:Name="MiniShell" Classes="mini" IsVisible="False" ToolTip.Tip="双击恢复标准窗口">
+  <Border x:Name="MiniShell" Classes="mini" IsVisible="False"
+          ToolTip.Tip="双击恢复标准窗口" ToolTip.ShowDelay="1500">
     <Grid ColumnDefinitions="*,1,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center">
       <TextBlock Grid.Row="0" Grid.Column="0" Classes="mini-label" Text="今日 Token" />
       <TextBlock Grid.Row="1" Grid.Column="0" x:Name="MiniTokensText" Classes="mini-token" Text="--" />
