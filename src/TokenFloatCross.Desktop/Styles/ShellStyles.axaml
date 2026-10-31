@@ -42,7 +42,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
-    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="Padding" Value="8,5" />
   </Style>
 
   <Style Selector="TextBlock.mini-label">
