@@ -348,10 +348,35 @@ public partial class App : Application
     {
         "rounded" => "SF Pro Rounded, Yuanti SC, YouYuan, PingFang SC, Microsoft YaHei UI",
         "song" => "Songti SC, STSong, SimSun, serif",
+        // 思源宋体 / 思源黑体都是可变字体，字体族名写成一串会让字重匹配失效（渲染成细体），
+        // 所以先挑出这台机器上真正装了的那一个，只把单个族名交给 Avalonia。
+        "source-serif" => PickInstalled("Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", "Source Han Serif", "SimSun"),
+        "source-sans" => PickInstalled("Noto Sans SC", "Source Han Sans SC", "Source Han Sans CN", "Source Han Sans", "Microsoft YaHei UI"),
         "kai" => "Kaiti SC, KaiTi, STKaiti, serif",
         "mono" => "SF Mono, Menlo, Consolas, monospace",
         _ => "SF Pro Text, SF Pro Display, PingFang SC, Helvetica Neue, Microsoft YaHei UI"
     };
+
+    private static readonly Dictionary<string, string> InstalledFamilyCache = new();
+
+    /// <summary>
+    /// 按顺序取第一个本机已安装的字体族；一个都没有时退回最后一个候选。
+    /// </summary>
+    private static string PickInstalled(params string[] candidates)
+    {
+        var cacheKey = string.Join('|', candidates);
+        if (InstalledFamilyCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var installed = FontManager.Current.SystemFonts
+            .Select(family => family.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var picked = candidates.FirstOrDefault(installed.Contains) ?? candidates[^1];
+        InstalledFamilyCache[cacheKey] = picked;
+        return picked;
+    }
 
     public static void ApplyTheme(bool dark)
     {

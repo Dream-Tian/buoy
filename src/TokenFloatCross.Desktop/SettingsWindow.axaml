@@ -206,6 +206,8 @@
                     <ComboBoxItem Content="系统默认" Tag="system" />
                     <ComboBoxItem Content="圆体" Tag="rounded" />
                     <ComboBoxItem Content="宋体" Tag="song" />
+                    <ComboBoxItem Content="思源宋体" Tag="source-serif" />
+                    <ComboBoxItem Content="思源黑体" Tag="source-sans" />
                     <ComboBoxItem Content="楷体" Tag="kai" />
                     <ComboBoxItem Content="等宽" Tag="mono" />
                   </ComboBox>

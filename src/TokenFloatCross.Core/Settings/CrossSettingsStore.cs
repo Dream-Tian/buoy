@@ -354,7 +354,8 @@ public sealed class CrossSettingsStore
         public bool WorkBuddyCnUsageEnabled { get; set; } = true;
     }
 
-    public static string NormalizeFont(string? key) => key is "rounded" or "song" or "kai" or "mono" ? key : "system";
+    public static string NormalizeFont(string? key) =>
+        key is "rounded" or "song" or "source-serif" or "source-sans" or "kai" or "mono" ? key : "system";
 
     public static string NormalizeRange(string? key) =>
         key is "week" or "month" or "24h" or "7d" or "30d" ? key : "today";

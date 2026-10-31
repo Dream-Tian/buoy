@@ -4,7 +4,6 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="TransparencyLevelHint" Value="Blur,Transparent" />
     <Setter Property="SystemDecorations" Value="None" />
-    <Setter Property="FontFamily" Value="SF Pro Text, SF Pro Display, PingFang SC, Helvetica Neue, Microsoft YaHei UI" />
   </Style>
 
   <Style Selector="Border.shell">
