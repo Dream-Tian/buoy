@@ -36,7 +36,12 @@
           <StackPanel x:Name="SourcePage" Spacing="8">
             <Border Classes="group" Padding="12,10">
               <StackPanel Spacing="8">
-                <TextBlock Classes="section-title" Text="NewAPI" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="section-title" Text="NewAPI" VerticalAlignment="Center" />
+                  <CheckBox x:Name="NewApiBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="NewApiBox_Click" />
+                </Grid>
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="勾选后才统计 NewAPI 用量；取消勾选不会删除地址和令牌，随时可以再开。" />
                 <StackPanel Spacing="4">
                   <TextBlock Classes="muted" Text="服务地址" />
                   <TextBox x:Name="BaseUrlBox" Classes="field" MinHeight="30" Watermark="https://new-api.example.com/" />
@@ -153,14 +158,6 @@
                 <Border Classes="rule" />
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="1">
-                    <TextBlock Text="桌面小组件" Foreground="{DynamicResource AppTextBrush}" />
-                    <TextBlock Classes="muted" TextWrapping="Wrap" Text="缩成小卡片贴在桌面层，不挡其他窗口" />
-                  </StackPanel>
-                  <CheckBox x:Name="WidgetModeBox" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Click="WidgetModeBox_Click" />
-                </Grid>
-                <Border Classes="rule" />
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="1">
                     <TextBlock Text="迷你模式" Foreground="{DynamicResource AppTextBrush}" />
                     <TextBlock Classes="muted" TextWrapping="Wrap" Text="只显示今日 Token 和已知消耗，双击窗口可来回切换" />
                   </StackPanel>
@@ -199,7 +196,7 @@
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="1">
                     <TextBlock Text="字体" Foreground="{DynamicResource AppTextBrush}" />
-                    <TextBlock Classes="muted" Text="主窗口、设置窗口和桌面卡片" />
+                    <TextBlock Classes="muted" Text="主窗口和设置窗口" />
                   </StackPanel>
                   <ComboBox x:Name="FontBox" Grid.Column="1" Width="132" MinHeight="28" HorizontalAlignment="Right"
                             SelectionChanged="FontBox_SelectionChanged">

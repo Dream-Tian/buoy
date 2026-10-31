@@ -311,7 +311,7 @@ struct UsageWidgetView: View {
     private var captionText: String {
         if entry.snapshot.hasError { return "刷新失败" }
         if entry.snapshot.updatedAtUnixSeconds == 0 { return "打开 Buoy 同步数据" }
-        if !entry.snapshot.isConfigured { return "在 Buoy 里配置 NewAPI" }
+        if !entry.snapshot.isConfigured { return "在 Buoy 里启用数据来源" }
         let base = "\(entry.snapshot.rangeText) TOKEN"
         guard entry.fromCache, family != .systemMedium else { return base }
         return "\(base) · 缓存"

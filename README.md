@@ -8,14 +8,14 @@
 
 ## 功能
 
-- **NewAPI 用量**：今日 / 本周 / 本月切换，总 Token、请求数、RPM、TPM 一起汇总。
+- **NewAPI 用量**：今日 / 本周 / 本月切换，总 Token、请求数、RPM、TPM 一起汇总；「来源」页可以单独勾选是否统计。
 - **WorkBuddy 用量**：读本机会话记录，把每条请求的 token 数并进同一套统计；只取 token 和模型名，不读对话正文、不上传。国际版 `~/.workbuddy-ai`（来源名 `WorkBuddy AI`）和国内版 `~/.workbuddy`（来源名 `WorkBuddy`）分开统计，各有一个开关。
 - **消费趋势**：按小时画图，可切 Token / 次数 / 消耗三种口径，柱状或面积两种画法。
 - **模型用量**：模型排行，含 Token、请求、消耗以及输入/输出占比。模型名带来源前缀（`NewAPI · xxx`、`WorkBuddy AI · xxx`、`WorkBuddy · xxx`），同名模型不会混在一起。
-- **模型筛选**：设置「筛选」页只统计指定模型，可单选可多选。列表来自主窗口当前时段用过的模型，不勾选表示统计全部；总览、趋势、模型页、菜单栏提示和桌面小组件一起生效。
+- **模型筛选**：设置「筛选」页只统计指定模型，可单选可多选。列表来自主窗口当前时段用过的模型，不勾选表示统计全部；总览、趋势、模型页、菜单栏提示和系统小组件一起生效。
 - **Antigravity 配额**：读取本机 IDE 登录态里的套餐名、Prompt 额度和各模型剩余比例；IDE 没在运行或没登录时读不到。
-- **桌面小组件**：macOS 上有两种 —— 应用内可拖动的桌面卡片（macOS 12+），以及随 `.app` 打包的 WidgetKit 系统小组件（macOS 14+）。
-- **迷你模式**：双击窗口（或点标题栏左侧的小卡片按钮）缩成一张只显示「今日 Token」和「已知消耗」的卡片，再双击回到标准窗口；和桌面小组件互斥，状态会记住。
+- **系统小组件**：随 macOS `.app` 打包的 WidgetKit 小组件（macOS 14+），显示所选时间段的 Token、请求数、模型和消耗。
+- **迷你模式**：双击窗口缩成一张只显示「今日 Token」和「已知消耗」的卡片，再双击回到标准窗口，状态会记住。
 - **常驻菜单栏 / 托盘**：macOS 上以普通应用身份运行（Dock 里有 Buoy 图标，聚焦时菜单栏是「Buoy」「窗口」两个菜单）；关窗口不退出，点托盘图标或 Dock 图标回到主窗口。「显示」把窗口调到当前 Space 的最前面并回到总览页。
 - **外观**：浅色 / 深色、系统默认 / 圆体 / 宋体 / 思源宋体 / 思源黑体 / 楷体 / 等宽七套字体、窗口置顶。思源两款取系统里装的 Noto Serif / Noto Sans SC（macOS 上是 Source Han Serif / Sans SC），没装时退回宋体或系统黑体。
 - **其他**：开机自启、刷新间隔 10 / 30 / 60 / 300 秒、仅窗口可见时刷新、手动检查更新清单。
@@ -38,17 +38,16 @@
 xattr -dr com.apple.quarantine /Applications/Buoy.app
 ```
 
-启动后点工具栏右侧的 ⚙ 打开设置，在「来源」页填 NewAPI 服务地址、访问令牌和用户 ID，保存后回主窗口刷新。
+启动后点工具栏右侧的 ⚙ 打开设置，在「来源」页填 NewAPI 服务地址、访问令牌和用户 ID，确认 NewAPI 已勾选后保存，回主窗口刷新。
 
 ## 使用
 
 - 主窗口顶部四个页签：总览、趋势、模型、配额；每页都能切今日 / 本周 / 本月。
-- 标题栏右侧两个按钮：切成桌面卡片、关闭窗口（关闭后仍留在菜单栏）。
-- 页签右边一行是刷新按钮和 ⚙ 设置。设置是独立窗口，分来源、窗口、筛选、数据、更新五页；「窗口」页管置顶、桌面小组件模式、开机自启、外观和字体；「筛选」页决定统计哪些模型，改完立刻生效，不用等下次刷新。
-- 「桌面小组件」把主窗口缩成一张卡片贴到桌面层，不挡其他窗口，拖动后的位置会记住。
+- 标题栏右侧是关闭窗口按钮（关闭后仍留在菜单栏）。
+- 页签右边一行是刷新按钮和 ⚙ 设置。设置是独立窗口，分来源、窗口、筛选、数据、更新五页；「窗口」页管置顶、迷你模式、开机自启、外观和字体；「筛选」页决定统计哪些模型，改完立刻生效，不用等下次刷新。
 - 「系统小组件范围」决定 WidgetKit 小组件看的是今日、本周、本月，还是最近 24 小时 / 7 天 / 30 天。
 
-## macOS 桌面小组件
+## macOS 系统小组件
 
 打包 macOS 应用时会编译 `macos-widget/` 下的 WidgetKit 扩展，显示所选时间段的 Token、请求数、RPM/TPM、TOP 1–3 模型及各自占比与消耗。安装后在桌面进入编辑模式，把 `Buoy 用量` 添加到桌面。系统会调度小组件刷新，更新间隔不保证固定。
 
@@ -63,8 +62,6 @@ CODESIGN_IDENTITY="Apple Development: 你的邮箱 (TEAMID)" scripts/package-mac
 分发给其他机器时需要 Developer ID 签名和公证；本机自用开发证书即可。正式分发前建议去掉上面那条文件回退和对应的 `temporary-exception` 权限，只留回环接口 —— 沙盒加网络权限不需要额外授权，公证也省事。
 
 扩展链接时使用 `_NSExtensionMain` 作为入口（脚本里的 `-Xlinker -e -Xlinker _NSExtensionMain`）。用 Swift 默认的 `@main` 入口时，macOS 26/27 上 `ExtensionFoundation` 会在启动阶段触发 `MainActor.assumeIsolated` 断言而崩溃。
-
-主窗口里的 `桌面小组件` 模式是可拖动的应用内浮窗，仍可用于 macOS 12 及以上；系统 WidgetKit 小组件只随 macOS `.app` 打包。
 
 ## 数据与隐私
 
@@ -81,9 +78,9 @@ CODESIGN_IDENTITY="Apple Development: 你的邮箱 (TEAMID)" scripts/package-mac
 dotnet run --project src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj
 ```
 
-`dotnet run` 起的是普通窗口：菜单栏常驻（不占 Dock）、桌面卡片模式都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
+`dotnet run` 起的是普通窗口：菜单栏常驻（不占 Dock）、迷你卡片都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
 
-Dock 隐藏由 `Program.cs` 里的 `MacOSPlatformOptions.ShowInDock = false` 完成，所以 `.app` 和 `dotnet run` 表现一致。**不要**在 `Info.plist` 里加 `LSUIElement`：声明成 UIElement 后 ExtensionKit 会把小组件扩展当成 “restricted or unknown” 忽略掉，小组件库和桌面小部件会整块消失。代价是打包版在启动瞬间可能闪过一下 Dock 图标，窗口起来后不占 Dock、也不进 Cmd+Tab。
+Dock 隐藏由 `Program.cs` 里的 `MacOSPlatformOptions.ShowInDock = false` 完成，所以 `.app` 和 `dotnet run` 表现一致。**不要**在 `Info.plist` 里加 `LSUIElement`：声明成 UIElement 后 ExtensionKit 会把小组件扩展当成 “restricted or unknown” 忽略掉，小组件库和系统小组件会整块消失。代价是打包版在启动瞬间可能闪过一下 Dock 图标，窗口起来后不占 Dock、也不进 Cmd+Tab。
 
 ## 打包
 

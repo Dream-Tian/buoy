@@ -163,39 +163,6 @@
     </Grid>
   </Border>
 
-  <Border x:Name="WidgetShell" Classes="widget" IsVisible="False">
-    <Grid RowDefinitions="*,Auto">
-      <StackPanel VerticalAlignment="Center" Spacing="3">
-        <TextBlock x:Name="WidgetTokensText" Text="--" FontSize="34" FontWeight="SemiBold"
-                   Foreground="{DynamicResource AppTextBrush}" />
-        <TextBlock x:Name="WidgetCaptionText" Text="今日 TOKEN" Classes="subtle" />
-      </StackPanel>
-
-      <Grid Grid.Row="1" ColumnDefinitions="*,1,*,1,*" Margin="0,14,0,0">
-        <StackPanel Spacing="2">
-          <TextBlock x:Name="WidgetRequestsText" Text="--" Classes="value" />
-          <TextBlock Text="请求" Classes="micro" />
-        </StackPanel>
-        <Border Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,3,0,3" />
-        <StackPanel Grid.Column="2" Spacing="2" Margin="12,0,0,0">
-          <TextBlock x:Name="WidgetRpmText" Text="--" Classes="value" />
-          <TextBlock Text="RPM" Classes="micro" />
-        </StackPanel>
-        <Border Grid.Column="3" Background="{DynamicResource AppBorderBrush}" Margin="0,3,0,3" />
-        <StackPanel Grid.Column="4" Spacing="2" Margin="12,0,0,0">
-          <TextBlock x:Name="WidgetTpmText" Text="--" Classes="value" />
-          <TextBlock Text="TPM" Classes="micro" />
-        </StackPanel>
-      </Grid>
-
-      <StackPanel Classes="widget-actions" Orientation="Horizontal" Spacing="2"
-                  HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-8,0">
-        <Button Classes="icon" Content="↗" Click="ExitWidget_Click" ToolTip.Tip="切换为标准窗口" />
-        <Button Classes="icon" Content="⚙" Click="SettingsButton_Click" ToolTip.Tip="设置" />
-      </StackPanel>
-    </Grid>
-  </Border>
-
   <!-- 迷你模式：只留今日 Token 与已知消耗，双击卡片回到标准窗口。 -->
   <Border x:Name="MiniShell" Classes="mini" IsVisible="False">
     <Grid ColumnDefinitions="*,1,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center">

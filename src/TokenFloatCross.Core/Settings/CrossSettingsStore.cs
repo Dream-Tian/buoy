@@ -9,6 +9,7 @@ public sealed record CrossAppSettings(
     string NewApiBaseUrl = "",
     string NewApiAccessToken = "",
     int NewApiUserId = 0,
+    bool NewApiUsageEnabled = true,
     bool UseDarkTheme = false,
     int RefreshIntervalSeconds = 30,
     bool RefreshOnlyWhenVisible = false,
@@ -19,10 +20,7 @@ public sealed record CrossAppSettings(
     string ManifestUrl = "https://github.com/Dream-Tian/TokenFloat/releases/latest/download/update-manifest.json",
     DateTimeOffset? UpdateLastCheckedUtc = null,
     bool LaunchAtLogin = false,
-    bool WidgetMode = false,
     bool MiniMode = false,
-    int? WidgetX = null,
-    int? WidgetY = null,
     string FontStyle = "system",
     string WidgetRange = "today",
     IReadOnlyList<string>? ModelFilter = null,
@@ -30,9 +28,17 @@ public sealed record CrossAppSettings(
     bool WorkBuddyUsageEnabled = true,
     bool WorkBuddyCnUsageEnabled = true)
 {
+    /// <summary>地址和令牌都填了；不关心「来源」页里有没有勾选启用。</summary>
     public bool IsNewApiConfigured =>
         !string.IsNullOrWhiteSpace(NewApiBaseUrl) &&
         !string.IsNullOrWhiteSpace(NewApiAccessToken);
+
+    /// <summary>NewAPI 已配置且勾选启用，刷新时才会去请求。</summary>
+    public bool IsNewApiActive => NewApiUsageEnabled && IsNewApiConfigured;
+
+    /// <summary>至少有一个要统计的来源，用来区分「空数据」和「没开来源」。</summary>
+    public bool HasEnabledSource =>
+        IsNewApiActive || WorkBuddyUsageEnabled || WorkBuddyCnUsageEnabled;
 
     public int NormalizedRefreshSeconds =>
         RefreshIntervalSeconds is 10 or 30 or 60 or 300 ? RefreshIntervalSeconds : 30;
@@ -122,6 +128,7 @@ public sealed class CrossSettingsStore
             NewApiBaseUrl = settings.NewApiBaseUrl.Trim(),
             NewApiAccessTokenProtected = Protect(settings.NewApiAccessToken.Trim()),
             NewApiUserId = Math.Max(0, settings.NewApiUserId),
+            NewApiUsageEnabled = settings.NewApiUsageEnabled,
             UseDarkTheme = settings.UseDarkTheme,
             RefreshIntervalSeconds = settings.NormalizedRefreshSeconds,
             RefreshOnlyWhenVisible = settings.RefreshOnlyWhenVisible,
@@ -132,10 +139,7 @@ public sealed class CrossSettingsStore
             ManifestUrl = settings.ManifestUrl.Trim(),
             UpdateLastCheckedUtc = settings.UpdateLastCheckedUtc,
             LaunchAtLogin = settings.LaunchAtLogin,
-            WidgetMode = settings.WidgetMode,
             MiniMode = settings.MiniMode,
-            WidgetX = settings.WidgetX,
-            WidgetY = settings.WidgetY,
             FontStyle = NormalizeFont(settings.FontStyle),
             WidgetRange = NormalizeRange(settings.WidgetRange),
             ModelFilter = NormalizeModels(settings.ModelFilter)?.ToArray(),
@@ -282,6 +286,7 @@ public sealed class CrossSettingsStore
         stored.NewApiBaseUrl ?? string.Empty,
         Unprotect(stored.NewApiAccessTokenProtected),
         Math.Max(0, stored.NewApiUserId),
+        stored.NewApiUsageEnabled,
         stored.UseDarkTheme,
         stored.RefreshIntervalSeconds is 10 or 30 or 60 or 300 ? stored.RefreshIntervalSeconds : 30,
         stored.RefreshOnlyWhenVisible,
@@ -294,10 +299,7 @@ public sealed class CrossSettingsStore
             : stored.ManifestUrl.Trim(),
         stored.UpdateLastCheckedUtc,
         stored.LaunchAtLogin,
-        stored.WidgetMode,
         stored.MiniMode,
-        stored.WidgetX,
-        stored.WidgetY,
         NormalizeFont(stored.FontStyle),
         NormalizeRange(stored.WidgetRange),
         NormalizeModels(stored.ModelFilter),
@@ -312,6 +314,8 @@ public sealed class CrossSettingsStore
         public string? NewApiAccessTokenProtected { get; set; }
 
         public int NewApiUserId { get; set; }
+
+        public bool NewApiUsageEnabled { get; set; } = true;
 
         public bool UseDarkTheme { get; set; }
 
@@ -333,13 +337,7 @@ public sealed class CrossSettingsStore
 
         public bool LaunchAtLogin { get; set; }
 
-        public bool WidgetMode { get; set; }
-
         public bool MiniMode { get; set; }
-
-        public int? WidgetX { get; set; }
-
-        public int? WidgetY { get; set; }
 
         public string? FontStyle { get; set; }
 

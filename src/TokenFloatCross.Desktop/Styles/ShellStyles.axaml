@@ -14,27 +14,6 @@
     <Setter Property="Padding" Value="16,14" />
   </Style>
 
-  <Style Selector="Border.widget">
-    <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="20" />
-    <Setter Property="Padding" Value="18,16" />
-  </Style>
-
-  <Style Selector="Border.widget StackPanel.widget-actions">
-    <Setter Property="Opacity" Value="0" />
-    <Setter Property="Transitions">
-      <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
-      </Transitions>
-    </Setter>
-  </Style>
-
-  <Style Selector="Border.widget:pointerover StackPanel.widget-actions">
-    <Setter Property="Opacity" Value="1" />
-  </Style>
-
   <!-- 迷你模式：一张只放两个数字的小卡片，圆角比标准窗口更圆。 -->
   <Style Selector="Border.mini">
     <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />

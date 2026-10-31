@@ -4,20 +4,11 @@ using Avalonia.Controls;
 namespace Buoy;
 
 /// <summary>
-/// 把窗口压到桌面层，让小组件像 macOS 桌面组件一样待在其他窗口后面。
+/// 让窗口跟着当前 Space 显示，并在唤起时把应用激活。
 /// </summary>
 internal static class MacWindowLevel
 {
     private const string ObjC = "/usr/lib/libobjc.A.dylib";
-
-    // 比 kCGDesktopIconWindowLevel(-2147483603) 高一级：压在 Finder 的桌面窗口之上（否则鼠标事件
-    // 会被桌面窗口吃掉，窗口看得见却点不动），同时仍远低于普通窗口(0)。
-    private const long DesktopIconLevel = -2147483602;
-    private const long NormalLevel = 0;
-    private const long FloatingLevel = 3;
-
-    // canJoinAllSpaces | stationary | ignoresCycle
-    private const ulong DesktopBehavior = 1 | 16 | 64;
 
     // NSWindowCollectionBehaviorMoveToActiveSpace：窗口显示时跟到当前 Space，
     // 而不是把用户切回它上次所在的那个 Space。
@@ -31,9 +22,6 @@ internal static class MacWindowLevel
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
     private static extern void SendUnsignedInteger(IntPtr receiver, IntPtr selector, ulong value);
-
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern void SendVoid(IntPtr receiver, IntPtr selector);
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
     [return: MarshalAs(UnmanagedType.I1)]
@@ -70,39 +58,6 @@ internal static class MacWindowLevel
         catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
         {
             // 原生调用失败时退回普通窗口，不影响主流程。
-        }
-    }
-
-    /// <summary>
-    /// enabled 为 true 时把窗口压到桌面层（桌面卡片用）：层级压到桌面图标之上，
-    /// 并带上 canJoinAllSpaces|stationary 让它跨 Space 常驻。
-    /// 交互用的主窗口不要走这条路——切 Space 时窗口会被重新合成而闪动。
-    /// </summary>
-    public static void SetDesktopLevel(Window window, bool enabled, bool topmost = false)
-    {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return;
-        }
-
-        try
-        {
-            var target = NativeWindow(window);
-            if (target == IntPtr.Zero)
-            {
-                return;
-            }
-
-            SendInteger(target, sel_registerName("setLevel:"), enabled ? DesktopIconLevel : (topmost ? FloatingLevel : NormalLevel));
-            SendUnsignedInteger(target, sel_registerName("setCollectionBehavior:"), enabled ? DesktopBehavior : 0);
-            if (enabled)
-            {
-                SendVoid(target, sel_registerName("orderFrontRegardless"));
-            }
-        }
-        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
-        {
-            // 拿不到原生窗口时保持普通窗口，不影响主流程。
         }
     }
 

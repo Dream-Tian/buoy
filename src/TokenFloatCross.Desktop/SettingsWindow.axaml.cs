@@ -55,13 +55,13 @@ public partial class SettingsWindow : Window
         BaseUrlBox.Text = settings.NewApiBaseUrl;
         TokenBox.Text = settings.NewApiAccessToken;
         UserIdBox.Text = settings.NewApiUserId > 0 ? settings.NewApiUserId.ToString() : string.Empty;
+        NewApiBox.IsChecked = settings.NewApiUsageEnabled;
         AntigravityBox.IsChecked = settings.AntigravityUsageEnabled;
         ChatGptBox.IsChecked = settings.ChatGptUsageEnabled;
         WorkBuddyBox.IsChecked = settings.WorkBuddyUsageEnabled;
         WorkBuddyCnBox.IsChecked = settings.WorkBuddyCnUsageEnabled;
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
-        WidgetModeBox.IsChecked = settings.WidgetMode;
         MiniModeBox.IsChecked = settings.MiniMode;
         LaunchAtLoginBox.IsChecked = StartupLaunch.IsEnabled();
         AutoUpdateBox.IsChecked = settings.AutoUpdateCheck;
@@ -157,6 +157,15 @@ public partial class SettingsWindow : Window
         {
             TestAntigravityButton.IsEnabled = true;
         }
+    }
+
+    private void NewApiBox_Click(object? sender, RoutedEventArgs e)
+    {
+        var enabled = NewApiBox.IsChecked == true;
+        Save(App.Settings with { NewApiUsageEnabled = enabled });
+        StatusText.Text = enabled
+            ? "NewAPI 用量已开启，关闭设置后会刷新"
+            : "NewAPI 用量已关闭，关闭设置后会刷新";
     }
 
     private void WorkBuddyBox_Click(object? sender, RoutedEventArgs e)
@@ -276,24 +285,10 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void WidgetModeBox_Click(object? sender, RoutedEventArgs e)
-    {
-        var enabled = WidgetModeBox.IsChecked == true;
-        // 迷你卡片和桌面小组件只能开一个，开这个就关掉那个。
-        Save(App.Settings with { WidgetMode = enabled, MiniMode = enabled ? false : App.Settings.MiniMode });
-        MiniModeBox.IsChecked = App.Settings.MiniMode;
-        _mainWindow?.RefreshWindowMode();
-
-        StatusText.Text = enabled
-            ? "已进入桌面小组件。拖动会记住位置。"
-            : "已切回标准窗口。";
-    }
-
     private void MiniModeBox_Click(object? sender, RoutedEventArgs e)
     {
         var enabled = MiniModeBox.IsChecked == true;
-        Save(App.Settings with { MiniMode = enabled, WidgetMode = enabled ? false : App.Settings.WidgetMode });
-        WidgetModeBox.IsChecked = App.Settings.WidgetMode;
+        Save(App.Settings with { MiniMode = enabled });
         _mainWindow?.RefreshWindowMode();
 
         StatusText.Text = enabled

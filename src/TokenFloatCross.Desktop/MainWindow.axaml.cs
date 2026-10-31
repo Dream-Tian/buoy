@@ -24,7 +24,6 @@ public partial class MainWindow : Window
     private WidgetQuotaSnapshot? _widgetQuota;
     private WidgetChatGptQuotaSnapshot? _widgetChatGpt;
     private readonly DispatcherTimer _refreshTimer = new();
-    private readonly DispatcherTimer _widgetSaveTimer = new() { Interval = TimeSpan.FromSeconds(1.2) };
     private ShellMode? _appliedMode;
     private DateTimeOffset _lastPressUtc;
     private Point _lastPressPoint;
@@ -32,8 +31,6 @@ public partial class MainWindow : Window
     private const double DoubleClickSlop = 6;
     private const double FullWidth = 560;
     private const double FullHeight = 392;
-    private const double WidgetWidth = 300;
-    private const double WidgetHeight = 156;
     private const double MiniWidth = 180;
     private const double MiniHeight = 54;
     private bool _lastRefreshHadError;
@@ -109,30 +106,13 @@ public partial class MainWindow : Window
         ApplyWindowMode();
         Opened += async (_, _) =>
         {
-            ApplyWidgetLevel();
-            ApplyWidgetPosition();
             RefreshVibrancy();
             await RefreshAsync();
-        };
-        PositionChanged += (_, _) =>
-        {
-            if (!App.Settings.WidgetMode)
-            {
-                return;
-            }
-
-            _widgetSaveTimer.Stop();
-            _widgetSaveTimer.Start();
-        };
-        _widgetSaveTimer.Tick += (_, _) =>
-        {
-            _widgetSaveTimer.Stop();
-            SaveWidgetPosition();
         };
     }
 
     /// <summary>
-    /// 标准窗口、桌面小组件、迷你卡片共用同一份数据，只在布局和窗口尺寸上切换。
+    /// 标准窗口和迷你卡片共用同一份数据，只在布局和窗口尺寸上切换。
     /// </summary>
     public void ApplyWindowMode()
     {
@@ -141,7 +121,6 @@ public partial class MainWindow : Window
         _appliedMode = mode;
 
         FullShell.IsVisible = mode == ShellMode.Full;
-        WidgetShell.IsVisible = mode == ShellMode.Widget;
         MiniShell.IsVisible = mode == ShellMode.Mini;
         Topmost = App.Settings.KeepWindowOnTop;
         RefreshVibrancy();
@@ -153,13 +132,6 @@ public partial class MainWindow : Window
 
         switch (mode)
         {
-            case ShellMode.Widget:
-                Width = WidgetWidth;
-                Height = WidgetHeight;
-                WindowStartupLocation = WindowStartupLocation.Manual;
-                ApplyWidgetPosition();
-                break;
-
             case ShellMode.Mini:
                 WindowStartupLocation = WindowStartupLocation.Manual;
                 Width = MiniWidth;
@@ -182,9 +154,7 @@ public partial class MainWindow : Window
     }
 
     private static ShellMode CurrentMode() =>
-        App.Settings.MiniMode ? ShellMode.Mini
-        : App.Settings.WidgetMode ? ShellMode.Widget
-        : ShellMode.Full;
+        App.Settings.MiniMode ? ShellMode.Mini : ShellMode.Full;
 
     /// <summary>
     /// 指针落在按钮、输入框这类控件上时不当作窗口拖动/双击，交给控件自己处理。
@@ -202,48 +172,16 @@ public partial class MainWindow : Window
         return false;
     }
 
-    public void RefreshWindowMode()
-    {
-        ApplyWindowMode();
-        ApplyWidgetLevel();
-    }
+    public void RefreshWindowMode() => ApplyWindowMode();
 
     /// <summary>
-    /// 窗口外壳的圆角三种模式各不相同，毛玻璃要跟着改，否则方角会露出来。
+    /// 窗口外壳的圆角两种模式各不相同，毛玻璃要跟着改，否则方角会露出来。
     /// </summary>
     public void RefreshVibrancy() => App.ApplyWindowVibrancy(this, CurrentMode() switch
     {
         ShellMode.Mini => 12,
-        ShellMode.Widget => 20,
         _ => 18
     });
-
-    private void ApplyWidgetLevel()
-    {
-        if (OperatingSystem.IsMacOS())
-        {
-            MacWindowLevel.SetDesktopLevel(this, App.Settings.WidgetMode && !App.Settings.KeepWindowOnTop, App.Settings.KeepWindowOnTop);
-        }
-    }
-
-    private void ApplyWidgetPosition()
-    {
-        if (!App.Settings.WidgetMode)
-        {
-            return;
-        }
-
-        if (App.Settings.WidgetX is int x && App.Settings.WidgetY is int y)
-        {
-            Position = new PixelPoint(x, y);
-        }
-        else if (Screens.Primary is { } screen)
-        {
-            // 默认放在桌面左下角，避开系统自带的小组件区。
-            var area = screen.WorkingArea;
-            Position = new PixelPoint(area.X + 28, Math.Max(area.Y + 28, area.Bottom - (int)Height - 40));
-        }
-    }
 
     private void CenterOnWorkingArea()
     {
@@ -258,25 +196,6 @@ public partial class MainWindow : Window
             area.Y + Math.Max(0, (area.Height - (int)Height) / 2));
     }
 
-    private void SaveWidgetPosition()
-    {
-        if (!App.Settings.WidgetMode)
-        {
-            return;
-        }
-
-        App.Settings = App.Settings with { WidgetX = Position.X, WidgetY = Position.Y };
-        App.SettingsStore.Save(App.Settings);
-    }
-
-    /// <summary>桌面小组件卡片右上角的「回到标准窗口」。</summary>
-    private void ExitWidget_Click(object? sender, RoutedEventArgs e)
-    {
-        App.Settings = App.Settings with { WidgetMode = false };
-        App.SettingsStore.Save(App.Settings);
-        RefreshWindowMode();
-    }
-
     /// <summary>双击窗口在标准窗口和迷你卡片之间来回切。</summary>
     private void ToggleMiniMode() => SetMiniMode(!App.Settings.MiniMode);
 
@@ -287,12 +206,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        App.Settings = App.Settings with
-        {
-            MiniMode = enabled,
-            // 迷你卡片和桌面小组件都是缩起来的形态，同时只留一个。
-            WidgetMode = enabled ? false : App.Settings.WidgetMode
-        };
+        App.Settings = App.Settings with { MiniMode = enabled };
         App.SettingsStore.Save(App.Settings);
         RefreshWindowMode();
         if (!enabled)
@@ -317,14 +231,7 @@ public partial class MainWindow : Window
     {
         ApplyWindowSettings();
         RefreshWindowMode();
-        if (App.Settings.IsNewApiConfigured || App.Settings.AntigravityUsageEnabled || App.Settings.ChatGptUsageEnabled)
-        {
-            await RefreshAsync();
-        }
-        else
-        {
-            await ReadQuotaAsync();
-        }
+        await RefreshAsync();
     }
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
@@ -383,7 +290,7 @@ public partial class MainWindow : Window
             var events = new List<TokenUsageEvent>();
             string? error = null;
 
-            if (settings.IsNewApiConfigured)
+            if (settings.IsNewApiActive)
             {
                 try
                 {
@@ -422,8 +329,8 @@ public partial class MainWindow : Window
                 ? error.Contains("invalid access token", StringComparison.OrdinalIgnoreCase)
                     ? "NewAPI 拒绝了当前 Token。请在设置里重新粘贴访问令牌并保存。"
                     : error
-                : events.Count == 0 && !settings.IsNewApiConfigured && !settings.WorkBuddyUsageEnabled && !settings.WorkBuddyCnUsageEnabled
-                    ? "未配置数据来源，点 ⚙ 填写 NewAPI 地址和令牌。"
+                : events.Count == 0 && !settings.HasEnabledSource
+                    ? "未启用数据来源，点 ⚙ 在「来源」页勾选要统计的来源。"
                     : DescribeEventCount());
         }
         catch (Exception exception)
@@ -437,7 +344,7 @@ public partial class MainWindow : Window
         {
             started.Stop();
             App.LastRefreshDuration = started.Elapsed;
-            RenderWidget();
+            PublishWidgetSnapshot();
             RenderMini();
         }
 
@@ -458,7 +365,7 @@ public partial class MainWindow : Window
     {
         ApplyModelFilter();
         Render();
-        RenderWidget();
+        PublishWidgetSnapshot();
         RenderMini();
         if (_allEvents.Count > 0)
         {
@@ -954,9 +861,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void RenderMini()
     {
-        if (!App.Settings.IsNewApiConfigured
-            && !App.Settings.WorkBuddyUsageEnabled
-            && !App.Settings.WorkBuddyCnUsageEnabled)
+        if (!App.Settings.HasEnabledSource)
         {
             MiniTokensText.Text = "--";
             MiniCostText.Text = "--";
@@ -969,36 +874,6 @@ public partial class MainWindow : Window
             .Sum(item => item.Quota);
         MiniTokensText.Text = FormatCount(today.TotalTokens);
         MiniCostText.Text = FormatUsd(todayQuota / QuotaPerUnit);
-    }
-
-    /// <summary>
-    /// 桌面卡片固定显示今日总量和速率，跟主窗口共用同一批事件。
-    /// </summary>
-    private void RenderWidget()
-    {
-        var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
-        WidgetTokensText.Text = FormatCount(today.TotalTokens);
-        WidgetRequestsText.Text = today.RequestCount.ToString("N0");
-        WidgetRpmText.Text = FormatRate(today.AverageRpm);
-        WidgetTpmText.Text = FormatRate(today.AverageTpm);
-
-        if (!App.Settings.IsNewApiConfigured)
-        {
-            WidgetCaptionText.Text = "在 Buoy 里配置 NewAPI";
-            WidgetCaptionText.Foreground = Brush("AppMutedBrush");
-        }
-        else if (_lastRefreshHadError)
-        {
-            WidgetCaptionText.Text = "刷新失败";
-            WidgetCaptionText.Foreground = Brush("AppOrangeBrush");
-        }
-        else
-        {
-            WidgetCaptionText.Text = "今日 TOKEN";
-            WidgetCaptionText.Foreground = Brush("AppMutedBrush");
-        }
-
-        PublishWidgetSnapshot();
     }
 
     /// <summary>
@@ -1039,7 +914,7 @@ public partial class MainWindow : Window
             rates.AverageRpm,
             rates.AverageTpm,
             _lastSuccessfulRefreshUtc?.ToUnixTimeSeconds() ?? 0,
-            App.Settings.IsNewApiConfigured,
+            App.Settings.HasEnabledSource,
             _lastRefreshHadError,
             topModels,
             (double)(quota / QuotaPerUnit),
@@ -1586,11 +1461,10 @@ public partial class MainWindow : Window
         Cost
     }
 
-    /// <summary>窗口的三种形态：标准窗口、桌面小组件、迷你卡片。</summary>
+    /// <summary>窗口的两种形态：标准窗口、迷你卡片。</summary>
     private enum ShellMode
     {
         Full,
-        Widget,
         Mini
     }
 

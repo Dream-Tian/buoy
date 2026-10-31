@@ -5,6 +5,7 @@ publish="$root/artifacts/osx-arm64"
 app="$root/artifacts/Buoy.app"
 dmg="$root/artifacts/Buoy.dmg"
 widget="$root/macos-widget"
+swift_cache="$root/artifacts/swift-module-cache"
 
 car_out="$root/artifacts/assetcatalog"
 assets_car=""
@@ -76,12 +77,13 @@ if [ -n "$assets_car" ]; then cp "$assets_car" "$app/Contents/Resources/Assets.c
 
 if command -v swiftc >/dev/null 2>&1; then
   widget_app="$app/Contents/PlugIns/BuoyWidget.appex"
-  mkdir -p "$widget_app/Contents/MacOS"
+  mkdir -p "$widget_app/Contents/MacOS" "$swift_cache"
   swiftc \
     -parse-as-library \
     -application-extension \
     -target arm64-apple-macosx14.0 \
     -module-name BuoyWidget \
+    -module-cache-path "$swift_cache" \
     -O \
     -Xlinker -e -Xlinker _NSExtensionMain \
     -o "$widget_app/Contents/MacOS/BuoyWidget" \
@@ -101,6 +103,7 @@ if command -v swiftc >/dev/null 2>&1; then
     -emit-library \
     -target arm64-apple-macosx14.0 \
     -module-name BuoyWidgetBridge \
+    -module-cache-path "$swift_cache" \
     -O \
     -o "$app/Contents/MacOS/libBuoyWidgetBridge.dylib" \
     "$widget/BuoyWidgetBridge.swift" \
