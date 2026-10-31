@@ -16,6 +16,9 @@
         <TextBlock Classes="title" Text="Buoy" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Classes="muted" Text="用量浮窗" Margin="8,0,0,0" VerticalAlignment="Center" />
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+          <Button Classes="icon" Click="EnterMini_Click" ToolTip.Tip="迷你模式（双击窗口也可切换）">
+            <Border Width="14" Height="8" BorderBrush="{DynamicResource AppMutedBrush}" BorderThickness="1.2" CornerRadius="2.5" />
+          </Button>
           <Button Classes="icon" Click="EnterWidget_Click" ToolTip.Tip="桌面小组件">
             <Border Width="10" Height="10" BorderBrush="{DynamicResource AppMutedBrush}" BorderThickness="1.2" CornerRadius="2" />
           </Button>
@@ -195,6 +198,18 @@
         <Button Classes="icon" Content="↗" Click="ExitWidget_Click" ToolTip.Tip="切换为标准窗口" />
         <Button Classes="icon" Content="⚙" Click="SettingsButton_Click" ToolTip.Tip="设置" />
       </StackPanel>
+    </Grid>
+  </Border>
+
+  <!-- 迷你模式：只留今日 Token 与已知消耗，双击卡片或点 ↗ 回到标准窗口。 -->
+  <Border x:Name="MiniShell" Classes="mini" IsVisible="False" ToolTip.Tip="双击恢复标准窗口">
+    <Grid ColumnDefinitions="*,1,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center">
+      <TextBlock Grid.Row="0" Grid.Column="0" Classes="mini-label" Text="今日 Token" />
+      <TextBlock Grid.Row="1" Grid.Column="0" x:Name="MiniTokensText" Classes="mini-token" Text="--" />
+      <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,3" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="16,0,0,0" />
+      <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MiniCostText" Classes="mini-cost"
+                 Text="$0.00" Margin="16,0,0,0" MinWidth="104" VerticalAlignment="Bottom" />
     </Grid>
   </Border>
   </Grid>

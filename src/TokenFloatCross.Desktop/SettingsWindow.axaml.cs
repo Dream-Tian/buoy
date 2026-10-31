@@ -62,6 +62,7 @@ public partial class SettingsWindow : Window
         VisibleOnlyBox.IsChecked = settings.RefreshOnlyWhenVisible;
         KeepOnTopBox.IsChecked = settings.KeepWindowOnTop;
         WidgetModeBox.IsChecked = settings.WidgetMode;
+        MiniModeBox.IsChecked = settings.MiniMode;
         LaunchAtLoginBox.IsChecked = StartupLaunch.IsEnabled();
         AutoUpdateBox.IsChecked = settings.AutoUpdateCheck;
         VibrancyBox.IsChecked = settings.VibrancyEnabled;
@@ -278,11 +279,25 @@ public partial class SettingsWindow : Window
     private void WidgetModeBox_Click(object? sender, RoutedEventArgs e)
     {
         var enabled = WidgetModeBox.IsChecked == true;
-        Save(App.Settings with { WidgetMode = enabled });
+        // 迷你卡片和桌面小组件只能开一个，开这个就关掉那个。
+        Save(App.Settings with { WidgetMode = enabled, MiniMode = enabled ? false : App.Settings.MiniMode });
+        MiniModeBox.IsChecked = App.Settings.MiniMode;
         _mainWindow?.RefreshWindowMode();
 
         StatusText.Text = enabled
             ? "已进入桌面小组件。拖动会记住位置。"
+            : "已切回标准窗口。";
+    }
+
+    private void MiniModeBox_Click(object? sender, RoutedEventArgs e)
+    {
+        var enabled = MiniModeBox.IsChecked == true;
+        Save(App.Settings with { MiniMode = enabled, WidgetMode = enabled ? false : App.Settings.WidgetMode });
+        WidgetModeBox.IsChecked = App.Settings.WidgetMode;
+        _mainWindow?.RefreshWindowMode();
+
+        StatusText.Text = enabled
+            ? "已进入迷你模式，双击卡片回到标准窗口。"
             : "已切回标准窗口。";
     }
 

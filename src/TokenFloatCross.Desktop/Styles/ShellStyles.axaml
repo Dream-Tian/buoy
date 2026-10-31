@@ -36,6 +36,32 @@
     <Setter Property="Opacity" Value="1" />
   </Style>
 
+  <!-- 迷你模式：一张只放两个数字的小卡片，圆角比标准窗口更圆。 -->
+  <Style Selector="Border.mini">
+    <Setter Property="Background" Value="{DynamicResource AppVibrancyBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="Padding" Value="16,12" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-label">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource AppMutedBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-token">
+    <Setter Property="FontSize" Value="27" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mini-cost">
+    <Setter Property="FontSize" Value="22" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AppAccentBrush}" />
+  </Style>
+
   <Style Selector="TextBlock.title">
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="SemiBold" />

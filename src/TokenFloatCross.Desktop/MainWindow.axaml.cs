@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Buoy.NewApi;
 using Buoy.Platform;
 using Buoy.Usage;
@@ -23,7 +25,17 @@ public partial class MainWindow : Window
     private WidgetChatGptQuotaSnapshot? _widgetChatGpt;
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly DispatcherTimer _widgetSaveTimer = new() { Interval = TimeSpan.FromSeconds(1.2) };
-    private bool _widgetApplied;
+    private ShellMode? _appliedMode;
+    private DateTimeOffset _lastPressUtc;
+    private Point _lastPressPoint;
+    private const int DoubleClickMilliseconds = 420;
+    private const double DoubleClickSlop = 6;
+    private const double FullWidth = 560;
+    private const double FullHeight = 392;
+    private const double WidgetWidth = 300;
+    private const double WidgetHeight = 156;
+    private const double MiniWidth = 320;
+    private const double MiniHeight = 110;
     private bool _lastRefreshHadError;
     private DateTimeOffset? _lastSuccessfulRefreshUtc;
     private const double TrendPlotLeft = 40;
@@ -47,10 +59,33 @@ public partial class MainWindow : Window
         OverviewSparkCanvas.SizeChanged += (_, _) => DrawOverviewSpark();
         PointerPressed += (_, eventArgs) =>
         {
-            if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            if (!eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
-                BeginMoveDrag(eventArgs);
+                return;
             }
+
+            if (IsInteractiveSource(eventArgs.Source))
+            {
+                return;
+            }
+
+            var position = eventArgs.GetPosition(this);
+            var now = DateTimeOffset.UtcNow;
+            // 双击自己算：按下就进了系统的窗口拖动循环，DoubleTapped 等不到第二次。
+            var isDoubleClick = now - _lastPressUtc <= TimeSpan.FromMilliseconds(DoubleClickMilliseconds)
+                                && Math.Abs(position.X - _lastPressPoint.X) <= DoubleClickSlop
+                                && Math.Abs(position.Y - _lastPressPoint.Y) <= DoubleClickSlop;
+
+            if (isDoubleClick)
+            {
+                _lastPressUtc = default;
+                ToggleMiniMode();
+                return;
+            }
+
+            _lastPressUtc = now;
+            _lastPressPoint = position;
+            BeginMoveDrag(eventArgs);
         };
         Closing += (_, eventArgs) =>
         {
@@ -71,7 +106,7 @@ public partial class MainWindow : Window
             await RefreshAsync();
         };
         ApplyWindowSettings();
-        ApplyWidgetMode();
+        ApplyWindowMode();
         Opened += async (_, _) =>
         {
             ApplyWidgetLevel();
@@ -97,16 +132,17 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 标准窗口和桌面小组件共用同一份数据，只在布局和窗口层级上切换。
+    /// 标准窗口、桌面小组件、迷你卡片共用同一份数据，只在布局和窗口尺寸上切换。
     /// </summary>
-    public void ApplyWidgetMode()
+    public void ApplyWindowMode()
     {
-        var widget = App.Settings.WidgetMode;
-        var changed = widget != _widgetApplied;
-        _widgetApplied = widget;
+        var mode = CurrentMode();
+        var changed = mode != _appliedMode;
+        _appliedMode = mode;
 
-        FullShell.IsVisible = !widget;
-        WidgetShell.IsVisible = widget;
+        FullShell.IsVisible = mode == ShellMode.Full;
+        WidgetShell.IsVisible = mode == ShellMode.Widget;
+        MiniShell.IsVisible = mode == ShellMode.Mini;
         Topmost = App.Settings.KeepWindowOnTop;
         RefreshVibrancy();
 
@@ -115,31 +151,72 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (widget)
+        switch (mode)
         {
-            Width = 300;
-            Height = 156;
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            ApplyWidgetPosition();
+            case ShellMode.Widget:
+                Width = WidgetWidth;
+                Height = WidgetHeight;
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                ApplyWidgetPosition();
+                break;
+
+            case ShellMode.Mini:
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                Width = MiniWidth;
+                Height = MiniHeight;
+                // 首次启动就是迷你模式时窗口还没显示过，直接摆到工作区中间。
+                if (!IsVisible)
+                {
+                    CenterOnWorkingArea();
+                }
+
+                RenderMini();
+                break;
+
+            default:
+                Width = FullWidth;
+                Height = FullHeight;
+                CenterOnWorkingArea();
+                break;
         }
-        else
+    }
+
+    private static ShellMode CurrentMode() =>
+        App.Settings.MiniMode ? ShellMode.Mini
+        : App.Settings.WidgetMode ? ShellMode.Widget
+        : ShellMode.Full;
+
+    /// <summary>
+    /// 指针落在按钮、输入框这类控件上时不当作窗口拖动/双击，交给控件自己处理。
+    /// </summary>
+    private static bool IsInteractiveSource(object? source)
+    {
+        for (var node = source as Visual; node is not null; node = node.GetVisualParent())
         {
-            Width = 560;
-            Height = 392;
-            CenterOnWorkingArea();
+            if (node is Button or TextBox or ScrollBar or ComboBox)
+            {
+                return true;
+            }
         }
+
+        return false;
     }
 
     public void RefreshWindowMode()
     {
-        ApplyWidgetMode();
+        ApplyWindowMode();
         ApplyWidgetLevel();
     }
 
     /// <summary>
-    /// 窗口外壳的圆角在标准模式和桌面卡片里不一样，毛玻璃要跟着改，否则方角会露出来。
+    /// 窗口外壳的圆角三种模式各不相同，毛玻璃要跟着改，否则方角会露出来。
     /// </summary>
-    public void RefreshVibrancy() => App.ApplyWindowVibrancy(this, App.Settings.WidgetMode ? 20 : 18);
+    public void RefreshVibrancy() => App.ApplyWindowVibrancy(this, CurrentMode() switch
+    {
+        ShellMode.Mini => 16,
+        ShellMode.Widget => 20,
+        _ => 18
+    });
 
     private void ApplyWidgetLevel()
     {
@@ -194,7 +271,7 @@ public partial class MainWindow : Window
 
     private void EnterWidget_Click(object? sender, RoutedEventArgs e)
     {
-        App.Settings = App.Settings with { WidgetMode = true };
+        App.Settings = App.Settings with { WidgetMode = true, MiniMode = false };
         App.SettingsStore.Save(App.Settings);
         RefreshWindowMode();
         SetStatus("已切成桌面小组件，拖到桌面任意位置即可固定。");
@@ -205,6 +282,33 @@ public partial class MainWindow : Window
         App.Settings = App.Settings with { WidgetMode = false };
         App.SettingsStore.Save(App.Settings);
         RefreshWindowMode();
+    }
+
+    /// <summary>标题栏上的迷你按钮。</summary>
+    private void EnterMini_Click(object? sender, RoutedEventArgs e) => SetMiniMode(true);
+
+    /// <summary>双击窗口在标准窗口和迷你卡片之间来回切。</summary>
+    private void ToggleMiniMode() => SetMiniMode(!App.Settings.MiniMode);
+
+    private void SetMiniMode(bool enabled)
+    {
+        if (enabled && App.Settings.MiniMode)
+        {
+            return;
+        }
+
+        App.Settings = App.Settings with
+        {
+            MiniMode = enabled,
+            // 迷你卡片和桌面小组件都是缩起来的形态，同时只留一个。
+            WidgetMode = enabled ? false : App.Settings.WidgetMode
+        };
+        App.SettingsStore.Save(App.Settings);
+        RefreshWindowMode();
+        if (!enabled)
+        {
+            SetStatus("已切回标准窗口，双击可再缩成迷你卡片。");
+        }
     }
 
     public void ApplyWindowSettings()
@@ -344,6 +448,7 @@ public partial class MainWindow : Window
             started.Stop();
             App.LastRefreshDuration = started.Elapsed;
             RenderWidget();
+            RenderMini();
         }
 
         await ReadQuotaAsync();
@@ -364,6 +469,7 @@ public partial class MainWindow : Window
         ApplyModelFilter();
         Render();
         RenderWidget();
+        RenderMini();
         if (_allEvents.Count > 0)
         {
             SetStatus(DescribeEventCount());
@@ -851,6 +957,28 @@ public partial class MainWindow : Window
             StrokeJoin = PenLineJoin.Round,
             StrokeLineCap = PenLineCap.Round
         });
+    }
+
+    /// <summary>
+    /// 迷你卡片只留今日 Token 和已知消耗，口径与总览页、托盘提示保持一致。
+    /// </summary>
+    private void RenderMini()
+    {
+        if (!App.Settings.IsNewApiConfigured
+            && !App.Settings.WorkBuddyUsageEnabled
+            && !App.Settings.WorkBuddyCnUsageEnabled)
+        {
+            MiniTokensText.Text = "--";
+            MiniCostText.Text = "--";
+            return;
+        }
+
+        var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
+        var todayQuota = _events
+            .Where(item => item.Timestamp.LocalDateTime >= DateTime.Today)
+            .Sum(item => item.Quota);
+        MiniTokensText.Text = FormatCount(today.TotalTokens);
+        MiniCostText.Text = FormatUsd(todayQuota / QuotaPerUnit);
     }
 
     /// <summary>
@@ -1466,6 +1594,14 @@ public partial class MainWindow : Window
         Tokens,
         Requests,
         Cost
+    }
+
+    /// <summary>窗口的三种形态：标准窗口、桌面小组件、迷你卡片。</summary>
+    private enum ShellMode
+    {
+        Full,
+        Widget,
+        Mini
     }
 
     private enum TrendChartStyle

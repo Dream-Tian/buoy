@@ -20,6 +20,7 @@ public sealed record CrossAppSettings(
     DateTimeOffset? UpdateLastCheckedUtc = null,
     bool LaunchAtLogin = false,
     bool WidgetMode = false,
+    bool MiniMode = false,
     int? WidgetX = null,
     int? WidgetY = null,
     string FontStyle = "system",
@@ -132,6 +133,7 @@ public sealed class CrossSettingsStore
             UpdateLastCheckedUtc = settings.UpdateLastCheckedUtc,
             LaunchAtLogin = settings.LaunchAtLogin,
             WidgetMode = settings.WidgetMode,
+            MiniMode = settings.MiniMode,
             WidgetX = settings.WidgetX,
             WidgetY = settings.WidgetY,
             FontStyle = NormalizeFont(settings.FontStyle),
@@ -293,6 +295,7 @@ public sealed class CrossSettingsStore
         stored.UpdateLastCheckedUtc,
         stored.LaunchAtLogin,
         stored.WidgetMode,
+        stored.MiniMode,
         stored.WidgetX,
         stored.WidgetY,
         NormalizeFont(stored.FontStyle),
@@ -331,6 +334,8 @@ public sealed class CrossSettingsStore
         public bool LaunchAtLogin { get; set; }
 
         public bool WidgetMode { get; set; }
+
+        public bool MiniMode { get; set; }
 
         public int? WidgetX { get; set; }
 
