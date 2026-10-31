@@ -206,11 +206,15 @@
           ToolTip.Tip="双击恢复标准窗口" ToolTip.ShowDelay="1500">
     <Grid ColumnDefinitions="*,1,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center">
       <TextBlock Grid.Row="0" Grid.Column="0" Classes="mini-label" Text="今日 Token" />
-      <TextBlock Grid.Row="1" Grid.Column="0" x:Name="MiniTokensText" Classes="mini-token" Text="--" />
-      <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,2" />
-      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="10,0,0,0" />
+      <!-- 数值位数会变（0 / 999.99万 / 2205.48万），超宽时按比例缩一点，别压到分隔线。 -->
+      <Viewbox Grid.Row="1" Grid.Column="0" Stretch="Uniform" StretchDirection="DownOnly"
+               HorizontalAlignment="Left" VerticalAlignment="Bottom">
+        <TextBlock x:Name="MiniTokensText" Classes="mini-token" Text="--" />
+      </Viewbox>
+      <Border Grid.RowSpan="2" Grid.Column="1" Background="{DynamicResource AppBorderBrush}" Margin="0,1" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Classes="mini-label" Text="已知消耗" Margin="8,0,0,0" />
       <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MiniCostText" Classes="mini-cost"
-                 Text="$0.00" Margin="10,0,0,0" MinWidth="52" VerticalAlignment="Bottom" />
+                 Text="$0.00" Margin="8,0,0,0" MinWidth="48" VerticalAlignment="Bottom" />
     </Grid>
   </Border>
   </Grid>
