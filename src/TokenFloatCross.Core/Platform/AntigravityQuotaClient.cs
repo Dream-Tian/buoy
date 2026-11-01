@@ -192,15 +192,24 @@ public sealed class AntigravityQuotaClient
             start.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(start);
-        if (process is null)
+        try
         {
+            using var process = Process.Start(start);
+            if (process is null)
+            {
+                return string.Empty;
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            return output;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
+        {
+            // 沙箱、企业管控或系统策略不允许起子进程时，配额读不到就算了，
+            // 不能因为一个可选来源把整个应用带崩。
             return string.Empty;
         }
-
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        return output;
     }
 
     internal static IReadOnlyList<(int ProcessId, string CsrfToken)> ParseProcesses(string output)
