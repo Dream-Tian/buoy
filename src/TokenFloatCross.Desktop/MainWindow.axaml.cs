@@ -48,6 +48,13 @@ public partial class MainWindow : Window
     private TrendMetric _trendMetric = TrendMetric.Tokens;
     private TrendChartStyle _trendChartStyle = TrendChartStyle.Bars;
 
+    // 窗口收起来以后没人看，数据继续刷（托盘提示和小组件要用），但没必要按 10 秒的节奏打接口。
+    private static readonly TimeSpan HiddenRefreshInterval = TimeSpan.FromSeconds(60);
+    private DateTimeOffset _lastRefreshUtc = DateTimeOffset.MinValue;
+    // 模型列表、趋势图和迷你走势这些"重活"只在数据或外观真的变了重画。
+    private string? _heavyRenderSignature;
+    private bool _heavyRenderPending = true;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -100,6 +107,12 @@ public partial class MainWindow : Window
                 return;
             }
 
+            // 隐藏时数据还在刷，只是把节奏放慢：托盘提示/小组件不需要 10 秒级的精度。
+            if (!IsVisible && DateTimeOffset.UtcNow - _lastRefreshUtc < HiddenRefreshInterval)
+            {
+                return;
+            }
+
             await RefreshAsync();
         };
         ApplyWindowSettings();
@@ -107,6 +120,8 @@ public partial class MainWindow : Window
         Opened += async (_, _) =>
         {
             RefreshVibrancy();
+            // 隐藏期间跳过的重绘，在重新显示时补一次。
+            _heavyRenderPending = true;
             await RefreshAsync();
         };
     }
@@ -344,8 +359,12 @@ public partial class MainWindow : Window
         {
             started.Stop();
             App.LastRefreshDuration = started.Elapsed;
+            _lastRefreshUtc = DateTimeOffset.UtcNow;
             PublishWidgetSnapshot();
-            RenderMini();
+            if (IsVisible)
+            {
+                RenderMini();
+            }
         }
 
         await ReadQuotaAsync();
@@ -749,10 +768,56 @@ public partial class MainWindow : Window
         var today = UsageMath.RatesFor(_events, UsagePeriod.Today);
         var todayQuota = _events.Where(item => item.Timestamp.LocalDateTime >= DateTime.Today).Sum(item => item.Quota);
         App.UpdateTrayTip($"今日 {FormatCount(today.TotalTokens)} · {today.RequestCount}次 · 消耗 {FormatUsd(todayQuota / QuotaPerUnit)}");
+
+        // 窗口收起来时上面这些文本更新看不见也不贵，但重建模型行、清空重画两个 Canvas
+        // 会白白堆一批控件和绘图对象，留到重新显示时再补。
+        if (!IsVisible)
+        {
+            _heavyRenderPending = true;
+            return;
+        }
+
+        // 数据/外观都没变就只更新上面几个数字，不重建列表和图表：
+        // 10 秒一次的刷新里大部分情况只是原地刷新同一批内容。
+        var signature = BuildRenderSignature();
+        if (!_heavyRenderPending && string.Equals(signature, _heavyRenderSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _heavyRenderSignature = signature;
+        _heavyRenderPending = false;
         RenderModels();
         DrawTrend();
         // 此刻布局可能还没跑完，Bounds 还是 0，等一帧再画。
         Dispatcher.UIThread.Post(DrawOverviewSpark, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// 重绘判重的指纹：数据本身（条数、汇总、最新时间戳）+ 当前时段 + 筛选和外观。
+    /// 平均 RPM/TPM 会随时间漂移，所以只影响上面的文本，不参与这个指纹。
+    /// </summary>
+    private string BuildRenderSignature()
+    {
+        long tokens = 0;
+        long requests = 0;
+        long quota = 0;
+        long latest = 0;
+        foreach (var item in _events)
+        {
+            tokens += item.InputTokens + item.OutputTokens;
+            requests += item.RequestCount;
+            quota += item.Quota;
+            var ticks = item.Timestamp.UtcTicks;
+            if (ticks > latest)
+            {
+                latest = ticks;
+            }
+        }
+
+        return string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"{_period}|{_events.Count}|{tokens}|{requests}|{quota}|{latest}|{string.Join(',', App.Settings.SelectedModels)}|{App.Settings.UseDarkTheme}|{App.Settings.FontStyle}");
     }
 
     /// <summary>

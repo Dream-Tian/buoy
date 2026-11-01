@@ -13,6 +13,9 @@ internal static class Program
         var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            // 窗口只有 560×392，默认那套 GPU 纹理缓存上限对这个尺寸太奢侈了。
+            // 卡住以后 Skia 会自己回收旧的图集，不至于把几百 MB 显存/内存一直攥着。
+            .With(new SkiaOptions { MaxGpuResourceSizeBytes = 64L * 1024 * 1024 })
             .LogToTrace();
 
         if (OperatingSystem.IsMacOS())
