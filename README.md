@@ -100,8 +100,9 @@ scripts/package-mac.sh
 
 ## 发版
 
-1. 先确认版本号一致：`scripts/package-mac.sh` 里 `CFBundleShortVersionString` 是应用版本，建议同时在 `TokenFloatCross.Desktop.csproj` 里补 `<Version>`，否则应用内「检查更新」比对的是默认的 1.0.0.0。
-2. 打标签并推送：`git tag v1.1.0 && git push origin v1.1.0`。
-3. 在 GitHub 的 Releases 里基于该标签新建发布，附上 `artifacts/Buoy.dmg`，说明本次改动用 `git log <上个标签>..HEAD --oneline` 整理。
+1. 版本号要一起改：`scripts/package-mac.sh` 里的 `CFBundleShortVersionString` / `CFBundleVersion`、`macos-widget/Widget-Info.plist` 里的小组件版本，以及 `TokenFloatCross.Desktop.csproj` 的 `<Version>`。
+2. 跑 `scripts/package-mac.sh`，产出 `artifacts/Buoy.app`、`artifacts/Buoy.dmg` 和 `artifacts/update-manifest.json`（清单里的 `version` / `installerUrl` 也写死在脚本里，发版时同步改）。
+3. 打标签并推送：`git tag v1.1.3 && git push origin v1.1.3`。
+4. 在 GitHub 的 Releases 里基于该标签新建发布，附上 `artifacts/Buoy.dmg` 和 `artifacts/update-manifest.json` 两个 asset。只有**非 pre-release** 的版本才会被 `releases/latest` 指向，应用内「检查更新」依赖这一点。
 
 签名和公证没有搞定之前，发布说明里最好注明「开发证书签名，首次打开需手动放行」，避免安装的人以为是包坏了。

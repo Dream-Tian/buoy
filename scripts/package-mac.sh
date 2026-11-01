@@ -53,8 +53,8 @@ cat > "$app/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Buoy</string>
   <key>CFBundleIdentifier</key><string>app.buoy.desktop</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.1.2</string>
-  <key>CFBundleVersion</key><string>25</string>
+  <key>CFBundleShortVersionString</key><string>1.1.3</string>
+  <key>CFBundleVersion</key><string>26</string>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
@@ -137,5 +137,18 @@ fi
 rm -f "$dmg"
 if ! hdiutil create -volname Buoy -srcfolder "$app" -ov -format UDZO "$dmg"; then
   echo "警告：hdiutil 生成 DMG 失败，Buoy.app 仍然可用。"
+fi
+manifest="$root/artifacts/update-manifest.json"
+if [ -f "$dmg" ]; then
+  dmg_hash="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+  # 发版时和上面的版本号、标签一起改。
+  cat > "$manifest" <<EOF
+{
+  "version": "1.1.3",
+  "installerUrl": "https://github.com/Dream-Tian/buoy/releases/download/v1.1.3/Buoy.dmg",
+  "sha256": "$dmg_hash"
+}
+EOF
+  echo "已生成 $manifest"
 fi
 echo "已生成 $app"

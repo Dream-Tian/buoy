@@ -17,7 +17,7 @@ public sealed record CrossAppSettings(
     bool AntigravityUsageEnabled = false,
     bool ChatGptUsageEnabled = false,
     bool AutoUpdateCheck = true,
-    string ManifestUrl = "https://github.com/Dream-Tian/TokenFloat/releases/latest/download/update-manifest.json",
+    string ManifestUrl = "https://github.com/Dream-Tian/buoy/releases/latest/download/update-manifest.json",
     DateTimeOffset? UpdateLastCheckedUtc = null,
     bool LaunchAtLogin = false,
     bool MiniMode = false,
@@ -294,9 +294,7 @@ public sealed class CrossSettingsStore
         stored.AntigravityUsageEnabled,
         stored.ChatGptUsageEnabled,
         stored.AutoUpdateCheck,
-        string.IsNullOrWhiteSpace(stored.ManifestUrl)
-            ? new CrossAppSettings().ManifestUrl
-            : stored.ManifestUrl.Trim(),
+        NormalizeManifestUrl(stored.ManifestUrl),
         stored.UpdateLastCheckedUtc,
         stored.LaunchAtLogin,
         stored.MiniMode,
@@ -350,6 +348,21 @@ public sealed class CrossSettingsStore
         public bool WorkBuddyUsageEnabled { get; set; } = true;
 
         public bool WorkBuddyCnUsageEnabled { get; set; } = true;
+    }
+
+    /// <summary>
+    /// 老版本的默认清单指向已经归档的 TokenFloat 仓库，会把版本错报成 2.3.1。
+    /// 读配置时把这类地址迁回 Buoy 自己的清单。
+    /// </summary>
+    private static string NormalizeManifestUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            url.Contains("Dream-Tian/TokenFloat/", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CrossAppSettings().ManifestUrl;
+        }
+
+        return url.Trim();
     }
 
     public static string NormalizeFont(string? key) =>
