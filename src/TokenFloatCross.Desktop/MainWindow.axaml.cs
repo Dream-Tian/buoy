@@ -473,7 +473,7 @@ public partial class MainWindow : Window
             {
                 Text = "ChatGPT",
                 FontSize = 11,
-                FontWeight = FontWeight.SemiBold,
+                FontWeight = FontWeight.Normal,
                 Foreground = Brush("AppTextBrush"),
                 Margin = new Thickness(0, antigravity is null ? 0 : 14, 0, 2)
             });
@@ -624,7 +624,7 @@ public partial class MainWindow : Window
         {
             Text = title,
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Foreground = Brush("AppTextBrush"),
             VerticalAlignment = VerticalAlignment.Center
         });
@@ -632,7 +632,7 @@ public partial class MainWindow : Window
         {
             Text = text,
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Margin = new Thickness(0, 0, 4, 0),
             Foreground = Brush(remaining <= 20 ? "AppOrangeBrush" : "AppAccentBrush"),
             VerticalAlignment = VerticalAlignment.Center
@@ -691,7 +691,7 @@ public partial class MainWindow : Window
         {
             Text = rank.ToString(),
             FontSize = 13,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Foreground = Brush(rank <= 3 ? "AppOrangeBrush" : "AppSubtleBrush"),
             VerticalAlignment = VerticalAlignment.Center
         });
@@ -705,7 +705,7 @@ public partial class MainWindow : Window
         {
             Text = label,
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Foreground = Brush("AppTextBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 320
@@ -729,7 +729,7 @@ public partial class MainWindow : Window
         {
             Text = percent,
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Margin = new Thickness(0, 0, 4, 0),
             Foreground = Brush(low ? "AppOrangeBrush" : "AppAccentBrush"),
             VerticalAlignment = VerticalAlignment.Center
@@ -1444,7 +1444,7 @@ public partial class MainWindow : Window
         {
             Text = rank.ToString(),
             FontSize = 13,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Foreground = Brush(rank <= 3 ? "AppOrangeBrush" : "AppSubtleBrush"),
             VerticalAlignment = VerticalAlignment.Top
         });
@@ -1458,7 +1458,7 @@ public partial class MainWindow : Window
         {
             Text = model.Model,
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
+            FontWeight = FontWeight.Normal,
             Foreground = Brush("AppTextBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 280
