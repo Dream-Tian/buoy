@@ -20,11 +20,12 @@ internal static class Program
 
         if (OperatingSystem.IsMacOS())
         {
-            // 菜单栏常驻，同时保持普通应用身份：accessory 应用拿不到菜单栏，
-            // 而反复在两种身份间切换会让 macOS 重新摆放窗口（切 Space、菜单栏闪）。
+            // 平时只驻留菜单栏：没有 Dock 图标，也不进 Cmd+Tab。
+            // 有窗口要显示时由 App.SyncActivationPolicy 临时切回普通应用（菜单栏才会
+            // 出现「Buoy」「窗口」和 ⌘ 快捷键），窗口全部收起后再回到菜单栏常驻。
             builder = builder.With(new MacOSPlatformOptions
             {
-                ShowInDock = true,
+                ShowInDock = false,
                 // 关掉 Avalonia 自带的 About/Hide/Quit，应用菜单由 App.BuildAppMenu 提供，
                 // 否则菜单栏里会出现两个同名菜单。
                 DisableDefaultApplicationMenuItems = true

@@ -85,6 +85,32 @@ internal static class MacWindowLevel
         }
     }
 
+    /// <summary>
+    /// Regular（0）是普通应用：有 Dock 图标、能进 Cmd+Tab，聚焦时 macOS 才把菜单栏交给它；
+    /// Accessory（1）只剩菜单栏图标，不占 Dock，代价是菜单栏永远是空的。
+    /// 状态没变时不要重复调用——重复设置会让 macOS 重新合成菜单栏和 Dock，看着像闪一下。
+    /// </summary>
+    public static void SetRegularApplication(bool regular)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        try
+        {
+            var nsApplication = SendPointer(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+            if (nsApplication != IntPtr.Zero)
+            {
+                SendInteger(nsApplication, sel_registerName("setActivationPolicy:"), regular ? 0 : 1);
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+            // 原生调用失败时保持当前身份，不影响主流程。
+        }
+    }
+
     private static IntPtr NativeWindow(Window window)
     {
         var handle = window.TryGetPlatformHandle();

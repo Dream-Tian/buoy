@@ -2,7 +2,7 @@
 
 用量浮窗。用 Avalonia 同时编译 Windows 和 macOS，统计和 NewAPI 请求放在不依赖系统的核心库里。
 
-关闭主窗口后，macOS 留在菜单栏，Windows 留在托盘。macOS 版只做菜单栏常驻，不显示 Dock 图标，也不会出现在 Cmd+Tab 列表里。NewAPI 用量和本机 Antigravity 配额都会读取。macOS 上的 Token 优先写入登录钥匙串。
+关闭主窗口后，macOS 留在菜单栏，Windows 留在托盘。macOS 平时只驻留菜单栏：不显示 Dock 图标，也不会出现在 Cmd+Tab 列表里；主窗口或设置窗口打开期间临时作为普通应用出现（Dock 里有 Buoy、菜单栏有「Buoy」「窗口」两个菜单），窗口全部收起后回到只占菜单栏。NewAPI 用量和本机 Antigravity 配额都会读取。macOS 上的 Token 优先写入登录钥匙串。
 
 原来的 Windows 版 TokenFloat 配置会在第一次启动时导入。Antigravity 会话里的逐条 Token 明细仍以那一版为准。
 
@@ -16,7 +16,7 @@
 - **Antigravity 配额**：读取本机 IDE 登录态里的套餐名、Prompt 额度和各模型剩余比例；IDE 没在运行或没登录时读不到。
 - **系统小组件**：随 macOS `.app` 打包的 WidgetKit 小组件（macOS 14+），显示所选时间段的 Token、请求数、模型和消耗。
 - **迷你模式**：双击窗口缩成一张只显示「今日 Token」和「已知消耗」的卡片，再双击回到标准窗口，状态会记住。
-- **常驻菜单栏 / 托盘**：macOS 上以普通应用身份运行（Dock 里有 Buoy 图标，聚焦时菜单栏是「Buoy」「窗口」两个菜单）；关窗口不退出，点托盘图标或 Dock 图标回到主窗口。「显示」把窗口调到当前 Space 的最前面并回到总览页。
+- **常驻菜单栏 / 托盘**：macOS 平时只占菜单栏，关窗口不退出，点菜单栏图标回到主窗口。有窗口（主窗口或设置窗口）打开时应用临时切成普通应用，Dock 里出现 Buoy 图标、菜单栏出现「Buoy」「窗口」两个菜单，⌘, / ⌘Q / ⌘W 可用；窗口全部收起后 Dock 图标消失，回到纯菜单栏常驻。「显示」把窗口调到当前 Space 的最前面并回到总览页。
 - **外观**：浅色 / 深色、系统默认 / 圆体 / 宋体 / 思源宋体 / 思源黑体 / 楷体 / 等宽七套字体、窗口置顶。思源两款取系统里装的 Noto Serif / Noto Sans SC（macOS 上是 Source Han Serif / Sans SC），没装时退回宋体或系统黑体。
 - **其他**：开机自启、刷新间隔 10 / 30 / 60 / 300 秒、仅窗口可见时刷新、手动检查更新清单。
 
@@ -80,7 +80,7 @@ dotnet run --project src/TokenFloatCross.Desktop/TokenFloatCross.Desktop.csproj
 
 `dotnet run` 起的是普通窗口：菜单栏常驻（不占 Dock）、迷你卡片都可用，但不会有 WidgetKit 扩展和对应的代码签名 —— 系统小组件只随 macOS `.app` 出现。
 
-Dock 隐藏由 `Program.cs` 里的 `MacOSPlatformOptions.ShowInDock = false` 完成，所以 `.app` 和 `dotnet run` 表现一致。**不要**在 `Info.plist` 里加 `LSUIElement`：声明成 UIElement 后 ExtensionKit 会把小组件扩展当成 “restricted or unknown” 忽略掉，小组件库和系统小组件会整块消失。代价是打包版在启动瞬间可能闪过一下 Dock 图标，窗口起来后不占 Dock、也不进 Cmd+Tab。
+Dock 隐藏由 `Program.cs` 里的 `MacOSPlatformOptions.ShowInDock = false` 完成：应用平时是菜单栏身份，有可见窗口时 `App.SyncActivationPolicy()` 临时切回普通应用（菜单栏才会显示 Buoy 的菜单；切换放在窗口显示之前 / 隐藏之后，避免 macOS 重新摆放窗口），窗口全部收起后再切回去。所以 `.app` 和 `dotnet run` 表现一致。**不要**在 `Info.plist` 里加 `LSUIElement`：声明成 UIElement 后 ExtensionKit 会把小组件扩展当成 “restricted or unknown” 忽略掉，小组件库和系统小组件会整块消失。代价是打包版在启动瞬间可能闪过一下 Dock 图标，窗口起来后不占 Dock、也不进 Cmd+Tab。
 
 ## 打包
 

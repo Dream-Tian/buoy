@@ -42,6 +42,10 @@ public partial class App : Application
             NativeMenu.SetMenu(this, BuildAppMenu());
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+            // 启动流程马上会把主窗口显示出来。趁它还没出现在屏幕上先切成普通应用：
+            // 窗口已经在屏幕上了再切策略，macOS 会把窗口重新摆一遍（切 Space、菜单栏闪一下）。
+            SetRegularApplication(true);
+
             // 菜单栏常驻用 OnExplicitShutdown，关窗口不退出；但系统注销/重启发来的退出请求要放行，
             // 否则 macOS 会认为应用拒绝退出，弹「中断了重启」并卡住重启。
             desktop.ShutdownRequested += (_, _) =>
@@ -164,7 +168,52 @@ public partial class App : Application
 
         desktop.MainWindow?.Hide();
         _settingsWindow?.Close();
+        SyncActivationPolicySoon();
     }
+
+    /// <summary>
+    /// 有可见窗口（主窗口 / 设置窗口）时切普通应用——只有普通应用聚焦时 macOS 才把
+    /// 菜单栏交给它；全部收起来后回到 accessory，只剩菜单栏图标，不占 Dock、不进 Cmd+Tab。
+    /// 状态没变时直接跳过，重复设置会让菜单栏和 Dock 重新合成、看着像闪。
+    /// </summary>
+    public static void SyncActivationPolicy()
+    {
+        if (!OperatingSystem.IsMacOS() ||
+            Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        var visible = desktop.MainWindow is { IsVisible: true } || _settingsWindow is { IsVisible: true };
+        SetRegularApplication(visible);
+    }
+
+    /// <summary>
+    /// 窗口显示/隐藏之后调用：延后一拍，等窗口真的收拾完再切身份，免得切换动作被
+    /// 窗口的显示流程覆盖，或者反过来把窗口重新摆一次。
+    /// </summary>
+    public static void SyncActivationPolicySoon()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(SyncActivationPolicy, DispatcherPriority.Background);
+    }
+
+    private static void SetRegularApplication(bool regular)
+    {
+        if (RegularApplied == regular)
+        {
+            return;
+        }
+
+        RegularApplied = regular;
+        MacWindowLevel.SetRegularApplication(regular);
+    }
+
+    private static bool? RegularApplied { get; set; }
 
     private static void ExitApp()
     {
@@ -218,6 +267,9 @@ public partial class App : Application
             main.ShowPage("Overview");
         }
 
+        // 先切回普通应用再显示窗口：菜单栏在窗口出现的那一刻就已经是 Buoy 的，
+        // 也避免先出窗口后切身份被 macOS 重新摆放一次。
+        SetRegularApplication(true);
         // 窗口在别的 Space 上时跟到当前 Space，而不是把用户切回去。
         MacWindowLevel.SetFollowsActiveSpace(window);
         window.Show();
@@ -229,6 +281,7 @@ public partial class App : Application
         // 菜单栏还挂在上一个应用名下——所以要显式激活一次。
         MacWindowLevel.ActivateApplication();
         window.Activate();
+        SyncActivationPolicy();
     }
 
     private static SettingsWindow? _settingsWindow;
@@ -252,6 +305,7 @@ public partial class App : Application
             }
             else
             {
+                SetRegularApplication(true);
                 existing.Show();
                 MacWindowLevel.ActivateApplication();
                 existing.Activate();
@@ -266,11 +320,13 @@ public partial class App : Application
         window.Closed += async (_, _) =>
         {
             _settingsWindow = null;
+            SyncActivationPolicySoon();
             if (main is not null)
             {
                 await main.RefreshAfterSettingsAsync();
             }
         };
+        SetRegularApplication(true);
         window.Show();
         MacWindowLevel.ActivateApplication();
         window.Activate();

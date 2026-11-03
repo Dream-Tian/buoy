@@ -97,6 +97,8 @@ public partial class MainWindow : Window
             {
                 eventArgs.Cancel = true;
                 Hide();
+                // 全部窗口都收起来后回到纯菜单栏常驻，Dock 图标随之消失。
+                App.SyncActivationPolicySoon();
             }
         };
         UsageTrendCanvas.SizeChanged += (_, _) => DrawTrend();
@@ -252,6 +254,7 @@ public partial class MainWindow : Window
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         Hide();
+        App.SyncActivationPolicySoon();
     }
 
     private void TabButton_Click(object? sender, RoutedEventArgs e)
